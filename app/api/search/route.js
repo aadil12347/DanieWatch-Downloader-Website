@@ -116,10 +116,24 @@ export async function POST(request) {
     }
 
     // Replace items and update total count in response
+    const cleanSearchKeyword = cleanText(searchKeyword);
+    const sortedItems = [...filteredItems].sort((a, b) => {
+      const getWeight = (item) => {
+        if (!item || !item.title) return 0;
+        const isExact = cleanText(item.title) === cleanSearchKeyword;
+        const hasHindi = /\[\s*hindi\s*\]/i.test(item.title);
+        if (isExact && hasHindi) return 3;
+        if (isExact) return 2;
+        if (hasHindi) return 1;
+        return 0;
+      };
+      return getWeight(b) - getWeight(a);
+    });
+
     if (data.data) {
-      data.data.items = filteredItems;
+      data.data.items = sortedItems;
       if (data.data.pager) {
-        data.data.pager.totalCount = showIndexOnly ? filteredItems.length : data.data.pager.totalCount;
+        data.data.pager.totalCount = showIndexOnly ? sortedItems.length : data.data.pager.totalCount;
         if (showIndexOnly) {
           data.data.pager.hasMore = false; // Whitelist filtering breaks remote pagination
         }
