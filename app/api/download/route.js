@@ -187,7 +187,7 @@ export async function GET(request) {
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       code: 0,
       message: 'ok',
       data: {
@@ -198,6 +198,8 @@ export async function GET(request) {
         freeNum: dlData?.freeNum || 999,
       },
     });
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    return response;
   } catch (error) {
     return NextResponse.json({ code: 500, message: error.message }, { status: 500 });
   }

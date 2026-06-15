@@ -23,7 +23,11 @@ export async function GET(request) {
 
     if (!res.ok) {
       console.warn(`CDN fetch failed: ${res.statusText}. Redirecting directly to: ${videoUrl}`);
-      return NextResponse.redirect(videoUrl, { status: 307 });
+      const headers = new Headers();
+      headers.set('Location', videoUrl);
+      headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      headers.set('Referrer-Policy', 'no-referrer');
+      return new NextResponse(null, { status: 307, headers });
     }
 
     const contentType = res.headers.get('content-type') || 'video/mp4';
@@ -66,6 +70,7 @@ export async function GET(request) {
       headers.set('Content-Length', contentLength);
     }
     headers.set('Content-Disposition', `attachment; filename="${filename}"`);
+    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
     return new NextResponse(res.body, { headers });
   } catch (error) {
