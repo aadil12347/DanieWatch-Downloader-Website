@@ -88,15 +88,71 @@ export async function POST(request) {
       }
     }
 
-    // 2. Fetch results from AoneRoom API
-    const res = await fetch('https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search', {
-      method: 'POST',
-      headers: { ...getBaseHeaders(), 'X-Source': 'downloader' },
-      body: JSON.stringify({ keyword: searchKeyword, page, perPage, subjectType }),
-    });
+    // 2. Fetch results from AoneRoom API (forwarding client headers to preserve regional geo-targeting)
+    const clientIp = request.headers.get('x-forwarded-for') || '';
+    const acceptLanguage = request.headers.get('accept-language') || '';
 
-    const data = await res.json();
-    const originalItems = data?.data?.items || [];
+    const headers = {
+      ...getBaseHeaders(),
+      'X-Source': 'downloader',
+    };
+    if (clientIp) {
+      headers['X-Forwarded-For'] = clientIp;
+    }
+    if (acceptLanguage) {
+      headers['Accept-Language'] = acceptLanguage;
+    }
+
+    const hasHindiWord = /hindi/i.test(searchKeyword);
+    const fetchPromises = [
+      fetch('https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ keyword: searchKeyword, page, perPage, subjectType }),
+      })
+    ];
+
+    // If search term doesn't already specify "Hindi", fetch with "Hindi" suffix in parallel to guarantee Hindi matches are retrieved from regions like US/Vercel
+    if (!hasHindiWord) {
+      fetchPromises.push(
+        fetch('https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ keyword: `${searchKeyword} Hindi`, page, perPage, subjectType }),
+        })
+      );
+    }
+
+    const responses = await Promise.all(fetchPromises);
+    const dataObjects = [];
+    for (const res of responses) {
+      try {
+        const json = await res.json();
+        dataObjects.push(json);
+      } catch (err) {
+        console.error('Error parsing AoneRoom search response:', err);
+        dataObjects.push(null);
+      }
+    }
+
+    const primaryData = dataObjects[0];
+    if (!primaryData || primaryData.code !== 0) {
+      throw new Error(primaryData?.message || 'Search failed');
+    }
+
+    let originalItems = primaryData.data?.items || [];
+
+    // Merge the secondary (Hindi) search results if we performed the query
+    if (dataObjects[1] && dataObjects[1].code === 0) {
+      const secondaryItems = dataObjects[1].data?.items || [];
+      const seenIds = new Set(originalItems.map(item => String(item.subjectId)));
+      for (const item of secondaryItems) {
+        if (!seenIds.has(String(item.subjectId))) {
+          originalItems.push(item);
+          seenIds.add(String(item.subjectId));
+        }
+      }
+    }
 
     // 3. Filter items by whitelist (only if showIndexOnly is true)
     let filteredItems = originalItems;
@@ -115,7 +171,7 @@ export async function POST(request) {
       }
     }
 
-    // Replace items and update total count in response
+    // 4. Replace items and update total count in response
     const cleanSearchKeyword = cleanText(searchKeyword);
     const sortedItems = [...filteredItems].sort((a, b) => {
       const getWeight = (item) => {
@@ -130,17 +186,17 @@ export async function POST(request) {
       return getWeight(b) - getWeight(a);
     });
 
-    if (data.data) {
-      data.data.items = sortedItems;
-      if (data.data.pager) {
-        data.data.pager.totalCount = showIndexOnly ? sortedItems.length : data.data.pager.totalCount;
+    if (primaryData.data) {
+      primaryData.data.items = sortedItems;
+      if (primaryData.data.pager) {
+        primaryData.data.pager.totalCount = showIndexOnly ? sortedItems.length : primaryData.data.pager.totalCount;
         if (showIndexOnly) {
-          data.data.pager.hasMore = false; // Whitelist filtering breaks remote pagination
+          primaryData.data.pager.hasMore = false; // Whitelist filtering breaks remote pagination
         }
       }
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(primaryData);
   } catch (error) {
     return NextResponse.json({ code: 500, message: error.message }, { status: 500 });
   }
