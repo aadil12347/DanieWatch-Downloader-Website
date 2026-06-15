@@ -293,6 +293,40 @@ export default function HomePage() {
     }
   }, [pager, loadingMore, loading, query, filter, doSearch]);
 
+  // ---- DOWNLOAD IFRAME TRIGGER ----
+  const triggerDownload = (url, e) => {
+    e.preventDefault();
+    let iframe = document.getElementById('download-iframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'download-iframe';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+    iframe.src = url;
+  };
+
+  // Clear hash on mount to avoid stale modal states
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#detail') {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+
+  // Listen for browser back button (popstate) to close detail modal
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined' && window.location.hash !== '#detail' && selectedItem) {
+        setSelectedItem(null);
+        setDetail(null);
+        setDownloads(null);
+        setModalError('');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedItem]);
+
   // ---- DETAIL ----
   const openDetail = async (item) => {
     setSelectedItem(item);
@@ -300,6 +334,10 @@ export default function HomePage() {
     setDownloads(null);
     setDetailLoading(true);
     setModalError('');
+
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modalOpen: true }, '', '#detail');
+    }
 
     const isTv = item.subjectType === 2 || item.subjectType === 3;
     const initialSeason = isTv ? 1 : 0;
@@ -324,10 +362,14 @@ export default function HomePage() {
   };
 
   const closeDetail = () => {
-    setSelectedItem(null);
-    setDetail(null);
-    setDownloads(null);
-    setModalError('');
+    if (typeof window !== 'undefined' && window.location.hash === '#detail') {
+      window.history.back();
+    } else {
+      setSelectedItem(null);
+      setDetail(null);
+      setDownloads(null);
+      setModalError('');
+    }
   };
 
   // ---- DOWNLOADS ----
@@ -1168,12 +1210,18 @@ export default function HomePage() {
                                 </div>
                               );
                             }
+                            const dlUrl = dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}`;
                             return (
                               <a
                                 key={i}
                                 className="dl-card-link"
-                                href={dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}`}
-                                target="_blank"
+                                href={dlUrl}
+                                onClick={(e) => {
+                                  if (dl.type !== 'redirect') {
+                                    triggerDownload(dlUrl, e);
+                                  }
+                                }}
+                                target={dl.type === 'redirect' ? "_blank" : undefined}
                                 rel="noopener noreferrer"
                               >
                                 <div className="dl-card-details-left">
@@ -1224,17 +1272,25 @@ export default function HomePage() {
                         <div className="subtitles-area-strip">
                           <h4 className="subtitles-area-title">💬 Subtitles</h4>
                           <div className="subtitles-chips-group">
-                            {downloads.captions.map((cap, i) => (
-                              <a
-                                key={i}
-                                className="subtitle-chip-link"
-                                href={cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {cap.lanName || cap.lan}
-                              </a>
-                            ))}
+                            {downloads.captions.map((cap, i) => {
+                              const capUrl = cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}`;
+                              return (
+                                <a
+                                  key={i}
+                                  className="subtitle-chip-link"
+                                  href={capUrl}
+                                  onClick={(e) => {
+                                    if (cap.type !== 'redirect') {
+                                      triggerDownload(capUrl, e);
+                                    }
+                                  }}
+                                  target={cap.type === 'redirect' ? "_blank" : undefined}
+                                  rel="noopener noreferrer"
+                                >
+                                  {cap.lanName || cap.lan}
+                                </a>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
