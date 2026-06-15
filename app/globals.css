@@ -1795,5 +1795,146 @@ html.lenis, html.lenis body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* ===== LANDING MODE (SINGLE PAGE, NO SCROLL) ===== */
+.landing-active {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
 
+.landing-active .main-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  flex: 1;
+}
 
+.landing-active .content-container {
+  width: 100%;
+  padding-top: 80px; /* Move content upward */
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  flex: 1;
+}
+
+.landing-active .hero-section {
+  padding: 10px 0 16px;
+}
+
+.landing-active .simple-footer {
+  background: transparent;
+  border-top: none;
+  padding: 16px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+}
+
+/* ===== ANIMATED SEARCH HERE ARROW ===== */
+.search-arrow-container {
+  position: absolute;
+  top: calc(100% + 16px);
+  left: 55%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 5;
+  color: var(--accent);
+  transform-origin: bottom right;
+  opacity: 0;
+  transform: translateY(40px) rotate(5deg);
+  animation: 
+    arrowAppear 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+    arrowFloat 3s ease-in-out infinite alternate 1s;
+}
+
+.search-arrow-text {
+  font-family: 'Outfit', 'Inter', cursive, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #06b6d4;
+  text-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
+  white-space: nowrap;
+}
+
+.search-arrow-svg {
+  width: 110px;
+  height: 88px;
+  overflow: visible;
+  filter: drop-shadow(0 0 10px var(--accent-glow));
+}
+
+@keyframes arrowAppear {
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-6deg);
+  }
+}
+
+@keyframes arrowFloat {
+  0% {
+    transform: translate(0, 0) rotate(-6deg);
+  }
+  100% {
+    transform: translate(-6px, -6px) rotate(-4deg);
+  }
+}
+
+/* Responsive adjustments for animated arrow & landing mode */
+@media (max-width: 767px) {
+  .landing-active .hero-section {
+    padding: 5px 0 10px;
+  }
+  
+  .landing-active .hero-title {
+    font-size: 24px;
+  }
+  
+  .landing-active .hero-subtitle {
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  .search-arrow-container {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 24px auto 0;
+    justify-content: center;
+    transform-origin: center;
+    transform: translateY(30px);
+    animation: 
+      arrowAppearMobile 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+      arrowFloatMobile 3s ease-in-out infinite alternate 1s;
+  }
+
+  .search-arrow-svg {
+    width: 80px;
+    height: 64px;
+  }
+
+  .search-arrow-text {
+    font-size: 16px;
+  }
+}
+
+@keyframes arrowAppearMobile {
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-2deg);
+  }
+}
+
+@keyframes arrowFloatMobile {
+  0% {
+    transform: translate(0, 0) rotate(-2deg);
+  }
+  100% {
+    transform: translate(-3px, -3px) rotate(1deg);
+  }
+}

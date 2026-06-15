@@ -593,9 +593,9 @@ export default function HomePage() {
     };
   }, []);
 
-  // Lock background scroll and stop Lenis when detail modal is open
+  // Lock background scroll and stop Lenis when detail modal is open or when no search has been made
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem || !searched) {
       document.body.style.overflow = 'hidden';
       document.documentElement.classList.add('lenis-stopped');
       if (window.lenis) {
@@ -615,7 +615,7 @@ export default function HomePage() {
         window.lenis.start();
       }
     };
-  }, [selectedItem]);
+  }, [selectedItem, searched]);
 
   // 2. INFINITE SCROLL INTERSECTION OBSERVER
   useEffect(() => {
@@ -699,7 +699,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex-col">
+    <div className={`min-h-screen flex-col ${!searched ? 'landing-active' : ''}`}>
       {/* SPLASH SCREEN */}
       <section className="splash_sec">
         <h1>
@@ -860,6 +860,30 @@ export default function HomePage() {
                 <span>Get MP4</span>
               </span>
             </div>
+
+            {/* Empty initial state - Arrow pointing to the search box */}
+            {!searched && !loading && (
+              <div className="search-arrow-container">
+                <span className="search-arrow-text">Search here</span>
+                <svg viewBox="0 0 100 80" className="search-arrow-svg">
+                  <path
+                    d="M80,70 Q70,20 20,30"
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M28,21 L18,30 L28,39"
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            )}
           </section>
 
           {/* FILTERS & MODE CONTROLS */}
@@ -902,62 +926,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Empty initial state or no results */}
-          {!searched && !loading && (
-            <>
-              <div className="empty-illustration-box">
-                <div className="icon-symbol">🎬</div>
-                <h2>Search for Movies & TV Shows</h2>
-                <p>Type a title above to find movies, TV shows, and anime with direct download links.</p>
-              </div>
 
-              {/* Informative text panels matching reference layout */}
-              <div className="info-section-divider"></div>
-              <div className="info-cards-grid">
-                <div className="info-panel-box">
-                  <h2>A Video Downloader Built Around Search</h2>
-                  <p>
-                    DanieWatch is designed for users who know the title they want but do not have a direct file link ready to paste.
-                  </p>
-                  <p>
-                    Search for a movie, TV show, or anime title, open the matching result, and choose from the available download options in just a few clicks.
-                  </p>
-                  <p>
-                    This title-first workflow makes DanieWatch different from traditional URL-only tools and better matches how many entertainment users search.
-                  </p>
-                </div>
-
-                <div className="info-panel-box">
-                  <h2>HD MP4 Downloads with Subtitle Options</h2>
-                  <p>
-                    Supported results can include video qualities, episode choices, and subtitle files, helping you compare versions before downloading.
-                  </p>
-                  <p>
-                    DanieWatch focuses on practical MP4 downloads in 480P, 720P, and 1080P so you can balance speed, file size, and picture quality across devices.
-                  </p>
-                  <p>
-                    For offline viewing, travel, or low-bandwidth environments, the workflow stays simple: search, choose quality, download.
-                  </p>
-                  
-                  {/* Resolution chip cards grid */}
-                  <div className="quality-chips-row">
-                    <div className="quality-chip-card">
-                      <div className="quality-chip-res">480P</div>
-                      <div className="quality-chip-desc">Compact</div>
-                    </div>
-                    <div className="quality-chip-card">
-                      <div className="quality-chip-res gradient-active">720P</div>
-                      <div className="quality-chip-desc">Balanced</div>
-                    </div>
-                    <div className="quality-chip-card">
-                      <div className="quality-chip-res">1080P</div>
-                      <div className="quality-chip-desc">Sharp</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Search result count */}
           {searched && pager && !loading && (

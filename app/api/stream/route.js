@@ -22,7 +22,8 @@ export async function GET(request) {
     });
 
     if (!res.ok) {
-      return new NextResponse(`CDN fetch failed: ${res.statusText}`, { status: res.status });
+      console.warn(`CDN fetch failed: ${res.statusText}. Redirecting directly to: ${videoUrl}`);
+      return NextResponse.redirect(videoUrl, { status: 307 });
     }
 
     const contentType = res.headers.get('content-type') || 'video/mp4';
