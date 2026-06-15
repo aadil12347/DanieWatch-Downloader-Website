@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 function getRawVideoUrl(reqUrl) {
   try {
     const urlObj = new URL(reqUrl);
@@ -27,25 +29,33 @@ export async function GET(request) {
       return NextResponse.json({ error: 'url required' }, { status: 400 });
     }
 
+    // Forward the client Range header if present
+    const clientRange = request.headers.get('range');
+    const headers = new Headers();
+    headers.set('Referer', 'https://videodownloader.site/');
+    headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    if (clientRange) {
+      headers.set('Range', clientRange);
+    }
+
     const res = await fetch(videoUrl, {
       method: 'GET',
-      headers: {
-        'Referer': 'https://videodownloader.site/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
+      headers
     });
 
-    if (!res.ok) {
-      console.warn(`CDN fetch failed: ${res.statusText}. Redirecting directly to: ${videoUrl}`);
-      const headers = new Headers();
-      headers.set('Location', videoUrl);
-      headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      headers.set('Referrer-Policy', 'no-referrer');
-      return new NextResponse(null, { status: 307, headers });
+    // 206 Partial Content is valid for range streams
+    if (!res.ok && res.status !== 206) {
+      console.warn(`CDN fetch failed with status ${res.status}: ${res.statusText}. Redirecting directly to: ${videoUrl}`);
+      const redirectHeaders = new Headers();
+      redirectHeaders.set('Location', videoUrl);
+      redirectHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      redirectHeaders.set('Referrer-Policy', 'no-referrer');
+      return new NextResponse(null, { status: 307, headers: redirectHeaders });
     }
 
     const contentType = res.headers.get('content-type') || 'video/mp4';
     const contentLength = res.headers.get('content-length');
+    const contentRange = res.headers.get('content-range');
     
     // Detect file extension based on contentType or URL path
     let ext = 'mp4';
@@ -78,15 +88,21 @@ export async function GET(request) {
     
     const filename = `${parts.join('_').replace(/[\s_]+/g, '_')}.${ext}`;
 
-    const headers = new Headers();
-    headers.set('Content-Type', contentType);
+    const responseHeaders = new Headers();
+    responseHeaders.set('Content-Type', contentType);
     if (contentLength) {
-      headers.set('Content-Length', contentLength);
+      responseHeaders.set('Content-Length', contentLength);
     }
-    headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    if (contentRange) {
+      responseHeaders.set('Content-Range', contentRange);
+    }
+    responseHeaders.set('Content-Disposition', `attachment; filename="${filename}"`);
+    responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
-    return new NextResponse(res.body, { headers });
+    return new NextResponse(res.body, { 
+      status: res.status,
+      headers: responseHeaders 
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
