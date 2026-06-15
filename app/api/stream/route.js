@@ -1,9 +1,23 @@
 import { NextResponse } from 'next/server';
 
+function getRawVideoUrl(reqUrl) {
+  try {
+    const urlObj = new URL(reqUrl);
+    const searchStr = urlObj.search;
+    const match = searchStr.match(/[?&]url=([^&]+)/);
+    if (match) {
+      return decodeURIComponent(match[1]);
+    }
+    return urlObj.searchParams.get('url');
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function GET(request) {
   try {
+    const videoUrl = getRawVideoUrl(request.url);
     const { searchParams } = new URL(request.url);
-    const videoUrl = searchParams.get('url');
     const title = searchParams.get('title') || 'video';
     const resolution = searchParams.get('res') || '720p';
     const se = searchParams.get('se');
