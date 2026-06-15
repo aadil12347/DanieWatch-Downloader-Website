@@ -860,30 +860,6 @@ export default function HomePage() {
                 <span>Get MP4</span>
               </span>
             </div>
-
-            {/* Empty initial state - Arrow pointing to the search box */}
-            {!searched && !loading && (
-              <div className="search-arrow-container">
-                <span className="search-arrow-text">Search here</span>
-                <svg viewBox="0 0 100 80" className="search-arrow-svg">
-                  <path
-                    d="M80,70 Q70,20 20,30"
-                    fill="none"
-                    stroke="var(--accent)"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M28,21 L18,30 L28,39"
-                    fill="none"
-                    stroke="var(--accent)"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            )}
           </section>
 
           {/* FILTERS & MODE CONTROLS */}
