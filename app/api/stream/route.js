@@ -29,6 +29,37 @@ export async function GET(request) {
       return NextResponse.json({ error: 'url required' }, { status: 400 });
     }
 
+    // Detect file extension based on URL path first
+    let ext = 'mp4';
+    const urlMatch = videoUrl.match(/\.([a-zA-Z0-9]+)(?:[\?#]|$)/);
+    if (urlMatch) {
+      const urlExt = urlMatch[1].toLowerCase();
+      if (['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'm3u8', 'srt', 'vtt', 'json', 'txt'].includes(urlExt)) {
+        ext = urlExt;
+      }
+    }
+
+    // Clean up filename and format as required
+    const cleanTitle = title.replace(/[^a-zA-Z0-9\s-_]/g, '').trim();
+    
+    let parts = [];
+    parts.push(cleanTitle || 'video');
+    
+    if (se && se !== '0') {
+      const sStr = `S${String(se).padStart(2, '0')}`;
+      const eStr = `E${String(ep || 1).padStart(2, '0')}`;
+      parts.push(sStr, eStr);
+    }
+    
+    let resStr = resolution;
+    if (/^\d+$/.test(resolution)) {
+      resStr = `${resolution}p`;
+    }
+    parts.push(resStr);
+    parts.push('DanieWatch');
+    
+    const baseFilename = parts.join('_').replace(/[\s_]+/g, '_');
+
     // Forward the client Range header if present
     const clientRange = request.headers.get('range');
     const headers = new Headers();
@@ -50,6 +81,7 @@ export async function GET(request) {
       redirectHeaders.set('Location', videoUrl);
       redirectHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       redirectHeaders.set('Referrer-Policy', 'no-referrer');
+      redirectHeaders.set('Content-Disposition', `attachment; filename="${baseFilename}.${ext}"`);
       return new NextResponse(null, { status: 307, headers: redirectHeaders });
     }
 
@@ -57,36 +89,22 @@ export async function GET(request) {
     const contentLength = res.headers.get('content-length');
     const contentRange = res.headers.get('content-range');
     
-    // Detect file extension based on contentType or URL path
-    let ext = 'mp4';
-    if (contentType.includes('subrip') || videoUrl.includes('.srt')) {
-      ext = 'srt';
-    } else if (contentType.includes('vtt') || videoUrl.includes('.vtt')) {
-      ext = 'vtt';
-    } else if (contentType.includes('json') || videoUrl.includes('.json')) {
-      ext = 'json';
+    // Refine extension based on content-type if not already matched from URL
+    if (!urlMatch) {
+      if (contentType.includes('subrip') || contentType.includes('srt')) {
+        ext = 'srt';
+      } else if (contentType.includes('vtt')) {
+        ext = 'vtt';
+      } else if (contentType.includes('json')) {
+        ext = 'json';
+      } else if (contentType.includes('x-matroska') || contentType.includes('mkv')) {
+        ext = 'mkv';
+      } else if (contentType.includes('webm')) {
+        ext = 'webm';
+      }
     }
     
-    // Clean up filename and format as required
-    const cleanTitle = title.replace(/[^a-zA-Z0-9\s-_]/g, '').trim();
-    
-    let parts = [];
-    parts.push(cleanTitle || 'video');
-    
-    if (se && se !== '0') {
-      const sStr = `S${String(se).padStart(2, '0')}`;
-      const eStr = `E${String(ep || 1).padStart(2, '0')}`;
-      parts.push(sStr, eStr);
-    }
-    
-    let resStr = resolution;
-    if (/^\d+$/.test(resolution)) {
-      resStr = `${resolution}p`;
-    }
-    parts.push(resStr);
-    parts.push('DanieWatch');
-    
-    const filename = `${parts.join('_').replace(/[\s_]+/g, '_')}.${ext}`;
+    const filename = `${baseFilename}.${ext}`;
 
     const responseHeaders = new Headers();
     responseHeaders.set('Content-Type', contentType);
