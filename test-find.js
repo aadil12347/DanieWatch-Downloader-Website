@@ -20,8 +20,8 @@ async function testProxy(name, getUrl) {
 }
 
 async function run() {
-  await testProxy('corsproxy.org', (u) => `https://corsproxy.org/?url=${encodeURIComponent(u)}`);
-  await testProxy('cors.eu.org', (u) => `https://cors.eu.org/${u}`);
+  await testProxy('yacdn', (u) => `https://yacdn.org/proxy/${u}`);
+  await testProxy('bridged', (u) => `https://cors.bridged.cc/${u}`);
 }
 
 run();
