@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+function getFetchUrl(url) {
+  const proxyUrl = process.env.CLOUDFLARE_WORKER_PROXY_URL;
+  if (proxyUrl && proxyUrl.startsWith('http') && !proxyUrl.includes('your-subdomain')) {
+    return `${proxyUrl.replace(/\/$/, '')}/?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+
 const AD_KEYWORDS = [
   'bit.ly', 'tinyurl', 'cutt.ly', 'linkvertise', 'adf.ly', 'shorturl',
   'doubleclick', 'popads', 'onclickads', 'exoclick', 'adsterra', 'adlink',
@@ -21,7 +30,8 @@ export async function POST(req) {
     console.log(`[VCloud Extractor] Extracting URL: ${url}`);
     
     // Step 1: Fetch Base Landing Page
-    const landingPageResponse = await fetch(url, {
+    const fetchUrl = getFetchUrl(url);
+    const landingPageResponse = await fetch(fetchUrl, {
       headers: { 'User-Agent': USER_AGENT }
     });
 
@@ -88,7 +98,8 @@ export async function POST(req) {
     }
 
     // Step 4: Fetch Token Page (set Referer header)
-    const tokenResponse = await fetch(tokenUrl, {
+    const fetchTokenUrl = getFetchUrl(tokenUrl);
+    const tokenResponse = await fetch(fetchTokenUrl, {
       headers: {
         'User-Agent': USER_AGENT,
         'Referer': url
@@ -200,7 +211,8 @@ async function traceHubCloudRedirect(initialUrl) {
       return urlObj.searchParams.get('link');
     }
 
-    const response = await fetch(currentUrl, {
+    const fetchCurrentUrl = getFetchUrl(currentUrl);
+    const response = await fetch(fetchCurrentUrl, {
       method: 'GET',
       redirect: 'manual',
       headers: { 'User-Agent': USER_AGENT }
