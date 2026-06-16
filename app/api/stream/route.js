@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 
+// Paste your Cloudflare Worker URL here after deploying it, or configure it in your environment variables.
+const CLOUDFLARE_WORKER_PROXY_URL = process.env.CLOUDFLARE_WORKER_PROXY_URL || 'https://danie-watch-proxy.your-subdomain.workers.dev';
+
 function getRawVideoUrl(reqUrl) {
   try {
     const urlObj = new URL(reqUrl);
@@ -29,6 +32,16 @@ export async function GET(request) {
       return NextResponse.json({ error: 'url required' }, { status: 400 });
     }
 
+    // 1. If Cloudflare Worker is configured (not the placeholder), redirect to it
+    if (CLOUDFLARE_WORKER_PROXY_URL && !CLOUDFLARE_WORKER_PROXY_URL.includes('your-subdomain')) {
+      const workerUrl = new URL(CLOUDFLARE_WORKER_PROXY_URL);
+      searchParams.forEach((value, key) => {
+        workerUrl.searchParams.set(key, value);
+      });
+      return NextResponse.redirect(workerUrl.toString(), 307);
+    }
+
+    // 2. Otherwise, fall back to local proxy streaming (useful for localhost testing without Cloudflare worker setup)
     // Detect file extension based on URL path first
     let ext = 'mp4';
     const urlMatch = videoUrl.match(/\.([a-zA-Z0-9]+)(?:[\?#]|$)/);

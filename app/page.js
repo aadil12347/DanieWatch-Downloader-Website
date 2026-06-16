@@ -293,17 +293,11 @@ export default function HomePage() {
     }
   }, [pager, loadingMore, loading, query, filter, doSearch]);
 
-  // ---- DOWNLOAD IFRAME TRIGGER ----
+  // ---- DOWNLOAD TRIGGER ----
   const triggerDownload = (url, e) => {
     e.preventDefault();
-    let iframe = document.getElementById('download-iframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'download-iframe';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-    }
-    iframe.src = url;
+    // Use window.location.href directly to bypass iframe cross-origin redirect restrictions
+    window.location.href = url;
   };
 
   // Clear hash on mount to avoid stale modal states
