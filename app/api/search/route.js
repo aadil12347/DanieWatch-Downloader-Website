@@ -39,10 +39,13 @@ function formatTitleWithLanguage(title, languagesArray) {
 
   // Find priority language
   let langTag = '';
+  const hasPunjabi = languagesArray.some(l => /punjabi/i.test(l));
   const hasHindi = languagesArray.some(l => /hindi/i.test(l));
   const hasEnglish = languagesArray.some(l => /english/i.test(l));
 
-  if (hasHindi) {
+  if (hasPunjabi) {
+    langTag = 'Punjabi';
+  } else if (hasHindi) {
     langTag = 'Hindi';
   } else if (hasEnglish) {
     langTag = 'English';
@@ -205,6 +208,7 @@ export async function POST(request) {
     }
 
     const hasHindiWord = /hindi/i.test(searchKeyword);
+    const hasPunjabiWord = /punjabi/i.test(searchKeyword);
     const fetchPromises = [
       fetch('https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search', {
         method: 'POST',
@@ -212,6 +216,16 @@ export async function POST(request) {
         body: JSON.stringify({ keyword: searchKeyword, page, perPage, subjectType }),
       })
     ];
+
+    if (!hasPunjabiWord) {
+      fetchPromises.push(
+        fetch('https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ keyword: `${searchKeyword} Punjabi`, page, perPage, subjectType }),
+        })
+      );
+    }
 
     if (!hasHindiWord) {
       fetchPromises.push(
@@ -241,15 +255,18 @@ export async function POST(request) {
     }
 
     let originalItems = primaryData.data?.items || [];
+    const seenIds = new Set(originalItems.map(item => String(item.subjectId)));
 
-    // Merge secondary (Hindi) search results
-    if (dataObjects[1] && dataObjects[1].code === 0) {
-      const secondaryItems = dataObjects[1].data?.items || [];
-      const seenIds = new Set(originalItems.map(item => String(item.subjectId)));
-      for (const item of secondaryItems) {
-        if (!seenIds.has(String(item.subjectId))) {
-          originalItems.push(item);
-          seenIds.add(String(item.subjectId));
+    // Merge secondary (Punjabi & Hindi) search results
+    for (let idx = 1; idx < dataObjects.length; idx++) {
+      const secondaryData = dataObjects[idx];
+      if (secondaryData && secondaryData.code === 0) {
+        const secondaryItems = secondaryData.data?.items || [];
+        for (const item of secondaryItems) {
+          if (!seenIds.has(String(item.subjectId))) {
+            originalItems.push(item);
+            seenIds.add(String(item.subjectId));
+          }
         }
       }
     }
@@ -269,15 +286,19 @@ export async function POST(request) {
       }
     }
 
-    // Sort original AoneRoom items
+    // Sort original AoneRoom items with Punjabi prioritized first, then Hindi
     const cleanSearchKeyword = cleanText(searchKeyword);
     const sortedItems = [...filteredItems].sort((a, b) => {
       const getWeight = (item) => {
         if (!item || !item.title) return 0;
         const isExact = cleanText(item.title) === cleanSearchKeyword;
-        const hasHindi = /\[\s*hindi\s*\]/i.test(item.title);
-        if (isExact && hasHindi) return 3;
-        if (isExact) return 2;
+        const hasPunjabi = /\[\s*punjabi\s*\]/i.test(item.title) || /\bpunjabi\b/i.test(item.title);
+        const hasHindi = /\[\s*hindi\s*\]/i.test(item.title) || /\bhindi\b/i.test(item.title);
+        
+        if (isExact && hasPunjabi) return 5;
+        if (isExact && hasHindi) return 4;
+        if (isExact) return 3;
+        if (hasPunjabi) return 2;
         if (hasHindi) return 1;
         return 0;
       };
