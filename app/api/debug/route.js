@@ -10,44 +10,45 @@ function getFetchUrl(url) {
 
 export async function GET(request) {
   const proxyUrl = process.env.CLOUDFLARE_WORKER_PROXY_URL || 'Not defined';
-  const isPlaceholder = proxyUrl.includes('your-subdomain');
   
-  const testUrl = 'https://vcloud.zip/3699fyu95ym3ma6';
-  const targetFetchUrl = getFetchUrl(testUrl);
+  // Test URLs
+  const urls = [
+    'https://vcloud.zip/9lfynnlmnwqggn9',
+    'https://vcloud.zip/re6qhhnhiandauo',
+    'https://vcloud.zip/1s_sj7sgjsusghs'
+  ];
   
-  let fetchResult = {};
-  try {
-    const t0 = Date.now();
-    const res = await fetch(targetFetchUrl, {
-      headers: { 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' 
-      },
-      cache: 'no-store'
-    });
-    const t1 = Date.now();
-    const text = await res.text();
-    const sizeMatch = text.match(/id=["']size["']>([^<]+)<\/i>/i);
-    
-    fetchResult = {
-      success: true,
-      status: res.status,
-      timeMs: t1 - t0,
-      sizeFound: !!sizeMatch,
-      sizeValue: sizeMatch ? sizeMatch[1] : null,
-      htmlSnippet: text.slice(0, 500),
-      isCloudflareChallenge: text.includes('Just a moment...') || text.includes('cloudflare') || text.includes('turnstile')
-    };
-  } catch (err) {
-    fetchResult = {
-      success: false,
-      error: err.message
-    };
+  const results = [];
+  for (const url of urls) {
+    const targetFetchUrl = getFetchUrl(url);
+    try {
+      const res = await fetch(targetFetchUrl, {
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' 
+        },
+        cache: 'no-store'
+      });
+      const text = await res.text();
+      const sizeMatch = text.match(/id=["']size["']>([^<]+)<\/i>/i);
+      results.push({
+        url,
+        targetFetchUrl,
+        status: res.status,
+        sizeFound: !!sizeMatch,
+        sizeValue: sizeMatch ? sizeMatch[1] : null,
+        title: text.match(/<title>([^<]+)<\/title>/i)?.[1] || 'No Title',
+        textLength: text.length
+      });
+    } catch (e) {
+      results.push({
+        url,
+        error: e.message
+      });
+    }
   }
   
   return NextResponse.json({
     proxyUrl,
-    isPlaceholder,
-    targetFetchUrl,
-    fetchResult
+    results
   });
 }
