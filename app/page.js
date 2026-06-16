@@ -87,6 +87,7 @@ export default function HomePage() {
   const [vcloudLayoutLoading, setVcloudLayoutLoading] = useState(false);
   const [vcloudSelectedSeason, setVcloudSelectedSeason] = useState(1);
   const [vcloudSelectedEpisode, setVcloudSelectedEpisode] = useState(1);
+  const [vcloudButtonErrors, setVcloudButtonErrors] = useState({});
   const [downloadingUrl, setDownloadingUrl] = useState(null);
 
   // Toast Notifications state
@@ -559,6 +560,7 @@ export default function HomePage() {
     setVcloudExtractingRes(resolutionName);
     setVcloudError(null);
     setVcloudServers(null);
+    setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: null }));
 
     try {
       const response = await fetch('/api/extract-vcloud', {
@@ -567,12 +569,48 @@ export default function HomePage() {
         body: JSON.stringify({ url: vcloudUrl })
       });
       const data = await response.json();
-      if (!response.ok || !data.success) {
+      if (!response.ok || !data.success || !data.servers) {
         throw new Error(data.error || 'Failed to extract video links.');
       }
+      
       setVcloudServers(data.servers);
+
+      // Select server in priority order: Server 1 -> Server 2 -> Server 3
+      const priorityOrder = ['Server 1', 'Server 2', 'Server 3'];
+      let selectedServerName = null;
+      let selectedServerUrl = null;
+
+      for (const name of priorityOrder) {
+        if (data.servers[name]) {
+          selectedServerName = name;
+          selectedServerUrl = data.servers[name];
+          break;
+        }
+      }
+
+      if (!selectedServerUrl) {
+        // Fallback to whatever server exists if priority ones aren't available
+        const available = Object.keys(data.servers);
+        if (available.length > 0) {
+          selectedServerName = available[0];
+          selectedServerUrl = data.servers[selectedServerName];
+        }
+      }
+
+      if (selectedServerUrl) {
+        const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(selectedItem.title)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}`;
+        triggerDownload(dlUrl, selectedItem.title);
+      } else {
+        throw new Error('No download server links returned.');
+      }
     } catch (err) {
       setVcloudError(err.message || 'An error occurred during link extraction.');
+      setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: 'Try again server is busy' }));
+      showToast('Try again server is busy', 'error');
+      // Clear error after 5s
+      setTimeout(() => {
+        setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: null }));
+      }, 5000);
     } finally {
       setVcloudExtractingRes(null);
     }
@@ -1364,55 +1402,28 @@ export default function HomePage() {
 
                           {vcloudResolutions && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-                              {Object.entries(vcloudResolutions).map(([resolution, vcloudUrl]) => (
+                              {Object.entries(vcloudResolutions).map(([resolution, resObj]) => (
                                 <button
                                   key={resolution}
-                                  onClick={(e) => handleVcloudExtract(vcloudUrl, resolution)}
+                                  onClick={(e) => handleVcloudExtract(resObj.url, resolution)}
                                   className="btn-load-more"
                                   style={{ 
                                     margin: '4px', 
                                     width: 'auto', 
                                     flex: '1', 
                                     minWidth: '120px', 
-                                    background: vcloudExtractingRes === resolution ? '#e50914' : 'rgba(255,255,255,0.05)',
+                                    background: vcloudExtractingRes === resolution ? '#e50914' : vcloudButtonErrors[resolution] ? '#7f1d1d' : 'rgba(255,255,255,0.05)',
                                     color: 'white',
-                                    borderColor: vcloudExtractingRes === resolution ? '#e50914' : 'rgba(255,255,255,0.1)'
+                                    borderColor: vcloudExtractingRes === resolution ? '#e50914' : vcloudButtonErrors[resolution] ? '#7f1d1d' : 'rgba(255,255,255,0.1)'
                                   }}
                                   disabled={!!vcloudExtractingRes}
                                 >
-                                  {vcloudExtractingRes === resolution ? `Resolving ${resolution}...` : `Get ${resolution}`}
+                                  {vcloudExtractingRes === resolution ? `Resolving ${resolution}...` : vcloudButtonErrors[resolution] ? vcloudButtonErrors[resolution] : `${resolution} (${resObj.size || 'Size N/A'})`}
                                 </button>
                               ))}
                             </div>
                           )}
 
-                          {vcloudServers && (
-                            <div style={{ marginTop: '12px' }}>
-                              <h4 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#94a3b8' }}>Available Fast Servers:</h4>
-                              <div className="download-cards-grid">
-                                {Object.entries(vcloudServers).map(([serverName, serverUrl]) => {
-                                  const dlUrl = `/api/stream?url=${encodeURIComponent(serverUrl)}&title=${encodeURIComponent(selectedItem.title)}&res=${serverName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}`;
-                                  return (
-                                    <a
-                                      key={serverName}
-                                      className="dl-card-link"
-                                      href="#"
-                                      onClick={(e) => triggerDownload(dlUrl, selectedItem.title, e)}
-                                      style={{ borderLeft: '3px solid #e50914' }}
-                                    >
-                                      <div className="dl-card-details-left">
-                                        <div className="dl-card-res">{serverName}</div>
-                                        <div className="dl-card-meta-line">VCloud Fast Speed CDN</div>
-                                      </div>
-                                      <span className="dl-card-icon-right">
-                                        {downloadingUrl === dlUrl ? '⏳' : '⬇'}
-                                      </span>
-                                    </a>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </>
                     ) : (

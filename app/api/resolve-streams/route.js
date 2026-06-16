@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getStreamingJsonUrl, fetchStreamLinksMap, parseVcloudLayout } from '@/lib/stream-resolver';
+import { getStreamingJsonUrl, fetchStreamLinksMap, parseVcloudLayout, getResolutionsWithSize } from '@/lib/stream-resolver';
 
 export async function GET(request) {
   try {
@@ -36,7 +36,9 @@ export async function GET(request) {
     }
 
     // Default: return resolutions for the selected season and episode
-    const resolutions = await fetchStreamLinksMap(jsonUrl, mediaType, season, episode);
+    const resolutionsMap = await fetchStreamLinksMap(jsonUrl, mediaType, season, episode);
+    const resolutions = await getResolutionsWithSize(resolutionsMap);
+    
     return NextResponse.json({ success: true, resolutions });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
