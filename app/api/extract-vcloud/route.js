@@ -204,6 +204,7 @@ async function traceHubCloudRedirect(initialUrl) {
 
     const response = await fetchViaScriptProxy(currentUrl, {
       method: 'GET',
+      redirect: 'manual',
       headers: { 'User-Agent': USER_AGENT }
     });
 
