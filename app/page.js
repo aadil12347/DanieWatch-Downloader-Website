@@ -605,12 +605,13 @@ export default function HomePage() {
       }
     } catch (err) {
       setVcloudError(err.message || 'An error occurred during link extraction.');
-      setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: 'Try again server is busy' }));
-      showToast('Try again server is busy', 'error');
-      // Clear error after 5s
+      setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: 'Opening Download Page...' }));
+      showToast('Opening download page directly...', 'info');
+      // Fallback: Open VCloud landing page directly in a new tab where user can solve challenges
       setTimeout(() => {
+        window.open(vcloudUrl, '_blank');
         setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: null }));
-      }, 5000);
+      }, 1500);
     } finally {
       setVcloudExtractingRes(null);
     }
@@ -1418,7 +1419,7 @@ export default function HomePage() {
                                   }}
                                   disabled={!!vcloudExtractingRes}
                                 >
-                                  {vcloudExtractingRes === resolution ? `Resolving ${resolution}...` : vcloudButtonErrors[resolution] ? vcloudButtonErrors[resolution] : `${resolution} (${resObj.size || 'Size N/A'})`}
+                                  {vcloudExtractingRes === resolution ? `Resolving ${resolution}...` : vcloudButtonErrors[resolution] ? vcloudButtonErrors[resolution] : (resObj.size && resObj.size !== 'Size N/A' ? `${resolution} (${resObj.size})` : resolution)}
                                 </button>
                               ))}
                             </div>
