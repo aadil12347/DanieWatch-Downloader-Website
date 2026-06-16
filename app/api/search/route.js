@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getBaseHeaders } from '@/lib/token';
+import { fetchFreshCatalog } from '@/lib/catalog';
 import fs from 'fs';
 import path from 'path';
+
+const TMDB_API_KEY = '5aede832ef2f3da08ee4fc5d4aab13c7';
 
 function getIndexData() {
   try {
@@ -28,14 +31,55 @@ function cleanText(title) {
     .trim();
 }
 
+// Format the post title with the language priority rules
+function formatTitleWithLanguage(title, languagesArray) {
+  if (!languagesArray || !Array.isArray(languagesArray) || languagesArray.length === 0) {
+    return title;
+  }
+
+  // Find priority language
+  let langTag = '';
+  const hasHindi = languagesArray.some(l => /hindi/i.test(l));
+  const hasEnglish = languagesArray.some(l => /english/i.test(l));
+
+  if (hasHindi) {
+    langTag = 'Hindi';
+  } else if (hasEnglish) {
+    langTag = 'English';
+  } else {
+    // Filter out quality tags from the base language list
+    const basicLangs = languagesArray.filter(l => !/cam|hdtc|tc|ts|telesync|telecine|result/i.test(l));
+    langTag = basicLangs.length > 0 ? basicLangs[0] : ''; // take first non-quality language
+  }
+
+  // Check for quality/Cam tags
+  let qualityTag = '';
+  const camMatch = languagesArray.some(l => /cam|ts|telesync/i.test(l)) || /cam|ts|telesync/i.test(title);
+  const hdtcMatch = languagesArray.some(l => /hdtc|tc|telecine/i.test(l)) || /hdtc|tc|telecine/i.test(title);
+  
+  if (camMatch) {
+    qualityTag = 'CAM';
+  } else if (hdtcMatch) {
+    qualityTag = 'HDTC';
+  }
+
+  // Build tag
+  let tagParts = [];
+  if (langTag) tagParts.push(langTag);
+  if (qualityTag) tagParts.push(qualityTag);
+
+  if (tagParts.length > 0) {
+    return `${title} [${tagParts.join(' - ')}]`;
+  }
+  return title;
+}
+
 async function resolveTitleFromId(id) {
   const cleanId = id.trim();
-  const key = '5aede832ef2f3da08ee4fc5d4aab13c7';
-  
   try {
     if (/^tt\d+$/.test(cleanId)) {
       // IMDb ID
-      const res = await fetch(`https://api.themoviedb.org/3/find/${cleanId}?api_key=${key}&external_source=imdb_id`);
+      const res = await fetch(`https://api.themoviedb.org/3/find/${cleanId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`);
       const data = await res.json();
       const movie = data?.movie_results?.[0];
       const tv = data?.tv_results?.[0];
@@ -44,13 +88,13 @@ async function resolveTitleFromId(id) {
     } else if (/^\d{5,8}$/.test(cleanId)) {
       // TMDB ID
       // Try movie
-      const movieRes = await fetch(`https://api.themoviedb.org/3/movie/${cleanId}?api_key=${key}`);
+      const movieRes = await fetch(`https://api.themoviedb.org/3/movie/${cleanId}?api_key=${TMDB_API_KEY}`);
       const movieData = await movieRes.json();
       if (movieData && movieData.title) {
         return { title: movieData.title, type: 'movie' };
       }
       // Try TV
-      const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${cleanId}?api_key=${key}`);
+      const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${cleanId}?api_key=${TMDB_API_KEY}`);
       const tvData = await tvRes.json();
       if (tvData && tvData.name) {
         return { title: tvData.name, type: 'tv' };
@@ -71,24 +115,81 @@ export async function POST(request) {
     const indexData = getIndexData();
 
     // 1. Check if keyword is a whitelisted TMDB/IMDb ID
-    // indexData entries map: [tmdbId, title, imdbId, subjectId, detailPath]
     const directMatch = indexData.find(
       item => String(item[0]) === cleanKeyword || String(item[2]) === cleanKeyword
     );
 
     let searchKeyword = cleanKeyword;
     if (directMatch) {
-      // Resolve ID to whitelisted Title
       searchKeyword = directMatch[1];
     } else if (/^(tt\d+|\d{5,8})$/.test(cleanKeyword)) {
-      // Not whitelisted, but looks like an ID - resolve from TMDB
       const resolved = await resolveTitleFromId(cleanKeyword);
       if (resolved) {
         searchKeyword = resolved.title;
       }
     }
 
-    // 2. Fetch results from AoneRoom API (forwarding client headers to preserve regional geo-targeting)
+    // 2. SEARCH THE GITHUB CATALOG INDEX FIRST (ONLY ON FIRST PAGE OF SEARCH RESULTS)
+    const githubMatches = [];
+    if (page === 1 && searchKeyword.length >= 2) {
+      try {
+        const catalog = await fetchFreshCatalog();
+        const queryClean = cleanText(searchKeyword);
+        const matchedCatalogItems = catalog.filter(item => {
+          return cleanText(item.title).includes(queryClean);
+        });
+
+        // Resolve details for the catalog matches from TMDB in parallel
+        const matchPromises = matchedCatalogItems.slice(0, 5).map(async (match) => {
+          const tmdbId = match.id;
+          const mediaType = match.mediaType === 'series' ? 'tv' : 'movie';
+          let coverUrl = '';
+          let rating = '';
+          let description = '';
+          let genres = '';
+          let countryName = '';
+
+          try {
+            const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`);
+            if (tmdbRes.ok) {
+              const tmdbData = await tmdbRes.json();
+              if (tmdbData.poster_path) {
+                coverUrl = `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`;
+              }
+              rating = tmdbData.vote_average ? String(tmdbData.vote_average.toFixed(1)) : '';
+              description = tmdbData.overview || '';
+              genres = (tmdbData.genres || []).map(g => g.name).join(', ');
+              countryName = (tmdbData.production_countries || []).map(c => c.name).join(', ') || (tmdbData.origin_country || []).join(', ');
+            }
+          } catch (e) {
+            console.error(`Error fetching TMDB details for match ${tmdbId}:`, e);
+          }
+
+          const formattedTitle = formatTitleWithLanguage(match.title, match.languages);
+
+          return {
+            subjectId: `github_${match.mediaType}_${tmdbId}`,
+            title: formattedTitle,
+            subjectType: match.mediaType === 'series' ? 2 : 1,
+            cover: coverUrl ? { url: coverUrl } : null,
+            imdbRatingValue: rating,
+            releaseDate: match.releaseDate || '',
+            genre: genres || match.genres.join(', '),
+            description: description,
+            countryName: countryName || match.originCountry.join(', '),
+            detailPath: `github_${match.mediaType}_${tmdbId}`,
+            fromGithubCatalog: true
+          };
+        });
+
+        const resolvedMatches = await Promise.all(matchPromises);
+        githubMatches.push(...resolvedMatches.filter(Boolean));
+      } catch (err) {
+        console.error('Error matching GitHub catalog index:', err);
+      }
+    }
+
+    // 3. Fetch results from AoneRoom API
     const clientIp = request.headers.get('x-forwarded-for') || '';
     const acceptLanguage = request.headers.get('accept-language') || '';
 
@@ -112,7 +213,6 @@ export async function POST(request) {
       })
     ];
 
-    // If search term doesn't already specify "Hindi", fetch with "Hindi" suffix in parallel to guarantee Hindi matches are retrieved from regions like US/Vercel
     if (!hasHindiWord) {
       fetchPromises.push(
         fetch('https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/search', {
@@ -142,7 +242,7 @@ export async function POST(request) {
 
     let originalItems = primaryData.data?.items || [];
 
-    // Merge the secondary (Hindi) search results if we performed the query
+    // Merge secondary (Hindi) search results
     if (dataObjects[1] && dataObjects[1].code === 0) {
       const secondaryItems = dataObjects[1].data?.items || [];
       const seenIds = new Set(originalItems.map(item => String(item.subjectId)));
@@ -154,16 +254,14 @@ export async function POST(request) {
       }
     }
 
-    // 3. Filter items by whitelist (only if showIndexOnly is true)
+    // Filter items by whitelist (if showIndexOnly is true)
     let filteredItems = originalItems;
     if (showIndexOnly) {
       if (directMatch) {
-        // Return only the exact whitelisted subjectId
         filteredItems = originalItems.filter(
           item => String(item.subjectId) === String(directMatch[3])
         );
       } else {
-        // Only show items whose subjectId exists in the whitelist
         const whitelistedSubjectIds = new Set(indexData.map(item => String(item[3])));
         filteredItems = originalItems.filter(
           item => whitelistedSubjectIds.has(String(item.subjectId))
@@ -171,7 +269,7 @@ export async function POST(request) {
       }
     }
 
-    // 4. Replace items and update total count in response
+    // Sort original AoneRoom items
     const cleanSearchKeyword = cleanText(searchKeyword);
     const sortedItems = [...filteredItems].sort((a, b) => {
       const getWeight = (item) => {
@@ -186,12 +284,24 @@ export async function POST(request) {
       return getWeight(b) - getWeight(a);
     });
 
+    // 4. MERGE GITHUB INDEX MATCHES FIRST, THEN DEDUPLICATE AND APPEND THE OTHERS
+    let finalItems = [...githubMatches];
+    const seenSubjectIds = new Set(githubMatches.map(m => String(m.subjectId)));
+
+    for (const item of sortedItems) {
+      const idStr = String(item.subjectId);
+      if (!seenSubjectIds.has(idStr)) {
+        finalItems.push(item);
+        seenSubjectIds.add(idStr);
+      }
+    }
+
     if (primaryData.data) {
-      primaryData.data.items = sortedItems;
+      primaryData.data.items = finalItems;
       if (primaryData.data.pager) {
-        primaryData.data.pager.totalCount = showIndexOnly ? sortedItems.length : primaryData.data.pager.totalCount;
+        primaryData.data.pager.totalCount = showIndexOnly ? finalItems.length : primaryData.data.pager.totalCount + githubMatches.length;
         if (showIndexOnly) {
-          primaryData.data.pager.hasMore = false; // Whitelist filtering breaks remote pagination
+          primaryData.data.pager.hasMore = false;
         }
       }
     }

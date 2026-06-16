@@ -77,6 +77,18 @@ export default function HomePage() {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [modalError, setModalError] = useState('');
 
+  // VCloud state
+  const [vcloudResolutions, setVcloudResolutions] = useState(null);
+  const [vcloudLoading, setVcloudLoading] = useState(false);
+  const [vcloudExtractingRes, setVcloudExtractingRes] = useState(null);
+  const [vcloudServers, setVcloudServers] = useState(null);
+  const [vcloudError, setVcloudError] = useState(null);
+  const [vcloudLayout, setVcloudLayout] = useState(null);
+  const [vcloudLayoutLoading, setVcloudLayoutLoading] = useState(false);
+  const [vcloudSelectedSeason, setVcloudSelectedSeason] = useState(1);
+  const [vcloudSelectedEpisode, setVcloudSelectedEpisode] = useState(1);
+  const [downloadingUrl, setDownloadingUrl] = useState(null);
+
   // Toast Notifications state
   const [notifications, setNotifications] = useState([]);
 
@@ -294,9 +306,13 @@ export default function HomePage() {
   }, [pager, loadingMore, loading, query, filter, doSearch]);
 
   // ---- DOWNLOAD TRIGGER ----
-  const triggerDownload = (url, e) => {
-    e.preventDefault();
-    // Use window.location.href directly to bypass iframe cross-origin redirect restrictions
+  const triggerDownload = (url, title, e) => {
+    e?.preventDefault();
+    setDownloadingUrl(url);
+    showToast(`Download "${title}" Started!`, 'success');
+    setTimeout(() => {
+      setDownloadingUrl(null);
+    }, 2000);
     window.location.href = url;
   };
 
@@ -315,6 +331,11 @@ export default function HomePage() {
         setDetail(null);
         setDownloads(null);
         setModalError('');
+        // Reset VCloud states
+        setVcloudLayout(null);
+        setVcloudResolutions(null);
+        setVcloudServers(null);
+        setVcloudError(null);
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -339,8 +360,17 @@ export default function HomePage() {
     setSelectedSeason(initialSeason);
     setSelectedEpisode(initialEpisode);
 
-    // Auto-fetch downloads immediately for both movies and TV shows
-    fetchDownloads(item.subjectId, initialSeason, initialEpisode, item.detailPath);
+    const whitelistedEntry = whitelist.find(w => {
+      const parts = String(item.subjectId).split('_');
+      const tmdbId = parts.length > 2 ? parts[2] : String(item.subjectId);
+      return String(w[0]) === tmdbId || String(w[3]) === String(item.subjectId);
+    });
+    const isGithubItem = item.fromGithubCatalog || String(item.subjectId).startsWith('github_');
+
+    if (!isGithubItem) {
+      // Auto-fetch AoneRoom downloads immediately for AoneRoom items only
+      fetchDownloads(item.subjectId, initialSeason, initialEpisode, item.detailPath);
+    }
 
     try {
       const res = await fetch(`/api/detail?detailPath=${encodeURIComponent(item.detailPath)}`);
@@ -363,6 +393,11 @@ export default function HomePage() {
       setDetail(null);
       setDownloads(null);
       setModalError('');
+      // Reset VCloud states
+      setVcloudLayout(null);
+      setVcloudResolutions(null);
+      setVcloudServers(null);
+      setVcloudError(null);
     }
   };
 
@@ -387,6 +422,159 @@ export default function HomePage() {
     setSelectedEpisode(ep);
     if (selectedItem) {
       fetchDownloads(selectedItem.subjectId, se, ep, selectedItem.detailPath);
+    }
+  };
+
+  // Automatically fetch VCloud layout when modal opens (only for series)
+  useEffect(() => {
+    if (!selectedItem) {
+      setVcloudLayout(null);
+      return;
+    }
+
+    const whitelistedEntry = whitelist.find(w => {
+      const parts = String(selectedItem.subjectId).split('_');
+      const tmdbId = parts.length > 2 ? parts[2] : String(selectedItem.subjectId);
+      return String(w[0]) === tmdbId || String(w[3]) === String(selectedItem.subjectId);
+    });
+    const isGithubItem = selectedItem.fromGithubCatalog || String(selectedItem.subjectId).startsWith('github_');
+    
+    if (!isGithubItem) return;
+
+    const mediaType = selectedItem.subjectType === 2 || selectedItem.subjectType === 3 ? 'series' : 'movie';
+    if (mediaType !== 'series') {
+      setVcloudLayout(null);
+      return;
+    }
+
+    // Extract tmdbId correctly
+    let tmdbId = '';
+    if (selectedItem.subjectId.startsWith('github_')) {
+      const parts = selectedItem.subjectId.split('_');
+      tmdbId = parts[2];
+    }
+
+    const title = whitelistedEntry ? whitelistedEntry[1] : selectedItem.title;
+    const imdbId = whitelistedEntry ? whitelistedEntry[2] : null;
+    const releaseYear = selectedItem.releaseDate ? parseInt(selectedItem.releaseDate.slice(0, 4)) : null;
+
+    async function loadVcloudLayout() {
+      setVcloudLayoutLoading(true);
+      setVcloudLayout(null);
+      setVcloudError(null);
+      try {
+        const res = await fetch(
+          `/api/resolve-streams?tmdbId=${tmdbId}&mediaType=series&title=${encodeURIComponent(title)}&year=${releaseYear || ''}&imdb=${imdbId || ''}&layout=true`
+        );
+        const data = await res.json();
+        if (data.success && data.layout) {
+          setVcloudLayout(data.layout);
+          // Auto select first season and episode
+          const seasons = Object.keys(data.layout).map(Number).sort((a, b) => a - b);
+          if (seasons.length > 0) {
+            const firstSe = seasons[0];
+            const episodes = data.layout[firstSe] || [];
+            const firstEp = episodes.length > 0 ? episodes[0] : 1;
+            setVcloudSelectedSeason(firstSe);
+            setVcloudSelectedEpisode(firstEp);
+          }
+        } else {
+          setVcloudError(data.error || 'No layout/episode data found for this TV show.');
+        }
+      } catch (err) {
+        setVcloudError('Failed to load episodes layout from GitHub.');
+      } finally {
+        setVcloudLayoutLoading(false);
+      }
+    }
+
+    loadVcloudLayout();
+  }, [selectedItem, whitelist]);
+
+  // Automatically fetch VCloud resolutions when modal opens or season/episode changes
+  useEffect(() => {
+    if (!selectedItem) {
+      setVcloudResolutions(null);
+      setVcloudServers(null);
+      setVcloudError(null);
+      return;
+    }
+
+    const whitelistedEntry = whitelist.find(w => {
+      const parts = String(selectedItem.subjectId).split('_');
+      const tmdbId = parts.length > 2 ? parts[2] : String(selectedItem.subjectId);
+      return String(w[0]) === tmdbId || String(w[3]) === String(selectedItem.subjectId);
+    });
+    const isGithubItem = selectedItem.fromGithubCatalog || String(selectedItem.subjectId).startsWith('github_');
+    
+    if (!isGithubItem) {
+      setVcloudResolutions(null);
+      return;
+    }
+
+    // Extract tmdbId correctly
+    let tmdbId = '';
+    if (selectedItem.subjectId.startsWith('github_')) {
+      const parts = selectedItem.subjectId.split('_');
+      tmdbId = parts[2];
+    }
+
+    const title = whitelistedEntry ? whitelistedEntry[1] : selectedItem.title;
+    const imdbId = whitelistedEntry ? whitelistedEntry[2] : null;
+    const mediaType = selectedItem.subjectType === 2 || selectedItem.subjectType === 3 ? 'series' : 'movie';
+    const releaseYear = selectedItem.releaseDate ? parseInt(selectedItem.releaseDate.slice(0, 4)) : null;
+
+    if (mediaType === 'series' && (!vcloudSelectedSeason || !vcloudSelectedEpisode)) {
+      return;
+    }
+
+    async function loadVcloudResolutions() {
+      setVcloudLoading(true);
+      setVcloudResolutions(null);
+      setVcloudServers(null);
+      setVcloudError(null);
+
+      try {
+        const episodeQuery = mediaType === 'series' ? `&season=${vcloudSelectedSeason}&episode=${vcloudSelectedEpisode}` : '';
+        const res = await fetch(
+          `/api/resolve-streams?tmdbId=${tmdbId}&mediaType=${mediaType}&title=${encodeURIComponent(title)}&year=${releaseYear || ''}&imdb=${imdbId || ''}${episodeQuery}`
+        );
+        const data = await res.json();
+        if (data.success && data.resolutions && Object.keys(data.resolutions).length > 0) {
+          setVcloudResolutions(data.resolutions);
+        } else {
+          setVcloudError('No VCloud streaming resolutions found for this selection.');
+        }
+      } catch (err) {
+        setVcloudError('Failed to load VCloud streaming index.');
+      } finally {
+        setVcloudLoading(false);
+      }
+    }
+
+    loadVcloudResolutions();
+  }, [selectedItem, vcloudSelectedSeason, vcloudSelectedEpisode, whitelist]);
+
+  const handleVcloudExtract = async (vcloudUrl, resolutionName) => {
+    setVcloudExtractingRes(resolutionName);
+    setVcloudError(null);
+    setVcloudServers(null);
+
+    try {
+      const response = await fetch('/api/extract-vcloud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: vcloudUrl })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to extract video links.');
+      }
+      setVcloudServers(data.servers);
+    } catch (err) {
+      setVcloudError(err.message || 'An error occurred during link extraction.');
+    } finally {
+      setVcloudExtractingRes(null);
     }
   };
 
@@ -1092,204 +1280,345 @@ export default function HomePage() {
                     </p>
                   )}
 
-                  {/* SEASON / EPISODE SELECTOR FOR TV/ANIME SHOWS */}
-                  {detail?.resource?.seasons && detail.resource.seasons.length > 0 && detail.resource.seasons[0].se > 0 && (
-                    <>
-                      <h3 className="modal-subheading">Seasons</h3>
-                      <div className="season-selector-tabs">
-                        {detail.resource.seasons.map(s => (
-                          <button
-                            key={s.se}
-                            className={`season-selector-pill ${selectedSeason === s.se ? 'active' : ''}`}
-                            onClick={() => {
-                              setSelectedSeason(s.se);
-                              setSelectedEpisode(1);
-                              setDownloads(null);
-                              fetchDownloads(selectedItem.subjectId, s.se, 1, selectedItem.detailPath);
-                            }}
-                          >
-                            Season {s.se}
-                          </button>
-                        ))}
-                      </div>
-
-                      {(() => {
-                        const currentSeason = detail.resource.seasons.find(s => s.se === selectedSeason);
-                        if (!currentSeason) return null;
-                        const maxEp = currentSeason.maxEp || 1;
-                        return (
+                  {/* CONDITIONAL RENDER: GITHUB CATALOG ITEM (VCLOUD ONLY) vs STANDARD AONEROOM ITEM */}
+                  {(() => {
+                    const whitelistedEntry = whitelist.find(w => {
+                      const parts = String(selectedItem.subjectId).split('_');
+                      const tmdbId = parts.length > 2 ? parts[2] : String(selectedItem.subjectId);
+                      return String(w[0]) === tmdbId || String(w[3]) === String(selectedItem.subjectId);
+                    });
+                    const isGithubItem = selectedItem.fromGithubCatalog || String(selectedItem.subjectId).startsWith('github_');
+                    return isGithubItem ? (
+                      <>
+                        {/* VCLOUD SEASONS / EPISODES SELECTORS (ONLY FOR SERIES) */}
+                        {vcloudLayoutLoading ? (
+                          <div className="download-loading">⏳ Loading show layout...</div>
+                        ) : vcloudLayout && (
                           <>
-                            <h3 className="modal-subheading">Episodes</h3>
-                            <div className="episodes-grid-selector">
-                              {Array.from({ length: maxEp }, (_, i) => i + 1).map(ep => (
+                            <h3 className="modal-subheading">Seasons</h3>
+                            <div className="season-selector-tabs">
+                              {Object.keys(vcloudLayout)
+                                .map(Number)
+                                .sort((a, b) => a - b)
+                                .map(se => (
+                                  <button
+                                    key={se}
+                                    className={`season-selector-pill ${vcloudSelectedSeason === se ? 'active' : ''}`}
+                                    onClick={() => {
+                                      setVcloudSelectedSeason(se);
+                                      // Auto select first episode of this season
+                                      const episodes = vcloudLayout[se] || [];
+                                      if (episodes.length > 0) {
+                                        setVcloudSelectedEpisode(episodes[0]);
+                                      }
+                                      setVcloudResolutions(null);
+                                      setVcloudServers(null);
+                                    }}
+                                  >
+                                    Season {se}
+                                  </button>
+                                ))}
+                            </div>
+
+                            {(() => {
+                              const episodes = vcloudLayout[vcloudSelectedSeason] || [];
+                              return (
+                                <>
+                                  <h3 className="modal-subheading">Episodes</h3>
+                                  <div className="episodes-grid-selector">
+                                    {episodes.map(ep => (
+                                      <button
+                                        key={ep}
+                                        className={`episode-selector-cell ${vcloudSelectedEpisode === ep ? 'active' : ''}`}
+                                        onClick={() => {
+                                          setVcloudSelectedEpisode(ep);
+                                          setVcloudResolutions(null);
+                                          setVcloudServers(null);
+                                        }}
+                                      >
+                                        {ep}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </>
+                        )}
+
+                        {/* VCLOUD PREMIUM DOWNLOADS SECTION */}
+                        <div className="modal-download-area" style={{ marginTop: '20px' }}>
+                          <h3 className="modal-subheading" style={{ color: '#e50914', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>⚡</span> Premium Direct Downloads (VCloud Servers)
+                          </h3>
+
+                          {vcloudLoading && (
+                            <div className="download-loading">⏳ Resolving VCloud resolutions...</div>
+                          )}
+
+                          {vcloudError && !vcloudResolutions && (
+                            <div style={{ padding: '8px', opacity: 0.7, fontSize: '13px' }}>
+                              {vcloudError}
+                            </div>
+                          )}
+
+                          {vcloudResolutions && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+                              {Object.entries(vcloudResolutions).map(([resolution, vcloudUrl]) => (
                                 <button
-                                  key={ep}
-                                  className={`episode-selector-cell ${selectedEpisode === ep ? 'active' : ''}`}
-                                  onClick={() => handleEpisodeClick(selectedSeason, ep)}
+                                  key={resolution}
+                                  onClick={(e) => handleVcloudExtract(vcloudUrl, resolution)}
+                                  className="btn-load-more"
+                                  style={{ 
+                                    margin: '4px', 
+                                    width: 'auto', 
+                                    flex: '1', 
+                                    minWidth: '120px', 
+                                    background: vcloudExtractingRes === resolution ? '#e50914' : 'rgba(255,255,255,0.05)',
+                                    color: 'white',
+                                    borderColor: vcloudExtractingRes === resolution ? '#e50914' : 'rgba(255,255,255,0.1)'
+                                  }}
+                                  disabled={!!vcloudExtractingRes}
                                 >
-                                  {ep}
+                                  {vcloudExtractingRes === resolution ? `Resolving ${resolution}...` : `Get ${resolution}`}
                                 </button>
                               ))}
                             </div>
-                          </>
-                        );
-                      })()}
-                    </>
-                  )}
+                          )}
 
-                  {/* Movie Links / TV Load action triggers */}
-                  {detail?.resource?.seasons?.[0]?.se === 0 && !downloads && !downloadLoading && (
-                    <button
-                      className="btn-load-more"
-                      style={{ width: '100%', marginTop: '12px' }}
-                      onClick={() => fetchDownloads(selectedItem.subjectId, 0, 0, selectedItem.detailPath)}
-                    >
-                      🔗 Get Download Links
-                    </button>
-                  )}
-
-                  {detail?.resource?.seasons?.[0]?.se > 0 && !downloads && !downloadLoading && (
-                    <button
-                      className="btn-load-more"
-                      style={{ width: '100%' }}
-                      onClick={() => handleEpisodeClick(selectedSeason, selectedEpisode)}
-                    >
-                      🔗 Get Download Links for S{selectedSeason}E{selectedEpisode}
-                    </button>
-                  )}
-
-                  {/* DOWNLOAD RESOURCES LIST */}
-                  {downloadLoading && (
-                    <div className="download-loading">⏳ Fetching download links...</div>
-                  )}
-
-                  {downloads && (
-                    <div className="modal-download-area">
-                      <h3 className="modal-subheading">📥 Download Options {selectedSeason > 0 ? `(S${selectedSeason}E${selectedEpisode})` : ''}</h3>
-
-                      {downloads.error ? (
-                        <div style={{ padding: '16px', textAlign: 'center' }}>
-                          <p className="not-found-color" style={{ marginBottom: '12px' }}>
-                            Failed to load resolutions: {downloads.error}
-                          </p>
-                          <button
-                            className="btn-load-more"
-                            style={{ padding: '8px 24px', fontSize: '13px', width: 'auto' }}
-                            onClick={() => fetchDownloads(selectedItem.subjectId, selectedSeason, selectedEpisode, selectedItem.detailPath)}
-                          >
-                            🔄 Retry
-                          </button>
-                        </div>
-                      ) : downloads.downloads && downloads.downloads.length > 0 ? (
-                        <div className="download-cards-grid">
-                          {downloads.downloads.map((dl, i) => {
-                            if (dl.type === 'not_found' || dl.type === 'redirect' || dl.note === 'Opens in OmniSave') {
-                              const isNotFound = dl.type === 'not_found';
-                              return (
-                                <div key={i} className="dl-card-link dl-card-disabled">
-                                  <div className="dl-card-details-left">
-                                    <div className="dl-card-res">
-                                      {dl.resolution}{typeof dl.resolution === 'number' ? 'p' : ''}
-                                    </div>
-                                    <div className="dl-card-meta-line">
-                                      {dl.format?.toUpperCase()} • {dl.size}
-                                    </div>
-                                    <div className="dl-card-note not-found-color">
-                                      {isNotFound ? 'Not Found' : 'Download Unavailable'}
-                                    </div>
-                                  </div>
-                                  <span className="dl-card-icon-right not-found-icon">
-                                    ❌
-                                  </span>
-                                </div>
-                              );
-                            }
-                            const dlUrl = dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}`;
-                            return (
-                              <a
-                                key={i}
-                                className="dl-card-link"
-                                href={dlUrl}
-                                onClick={(e) => {
-                                  if (dl.type !== 'redirect') {
-                                    triggerDownload(dlUrl, e);
-                                  }
-                                }}
-                                target={dl.type === 'redirect' ? "_blank" : undefined}
-                                rel="noopener noreferrer"
-                              >
-                                <div className="dl-card-details-left">
-                                  <div className="dl-card-res">
-                                    {dl.resolution}{typeof dl.resolution === 'number' ? 'p' : ''}
-                                  </div>
-                                  <div className="dl-card-meta-line">
-                                    {dl.format?.toUpperCase()} • {dl.size}
-                                  </div>
-                                  {dl.note && (
-                                    <div className="dl-card-note">{dl.note}</div>
-                                  )}
-                                </div>
-                                <span className="dl-card-icon-right">
-                                  {dl.type === 'redirect' ? '🔗' : dl.type === 'stream' ? '▶️' : '⬇'}
-                                </span>
-                              </a>
-                            );
-                          })}
-
-                          {/* Dubs if present */}
-                          {downloads.downloads[0]?.dubs && downloads.downloads[0].dubs.length > 0 && (
-                            <div className="dl-dubs-strip">
-                              <div className="dl-dubs-title">🌐 Alternative Versions / Languages:</div>
-                              <div className="subtitles-chips-group">
-                                {downloads.downloads[0].dubs.map((dub, i) => (
-                                  <button
-                                    key={i}
-                                    className="subtitle-chip-link"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      fetchDownloads(dub.subjectId, 0, 0, dub.detailPath);
-                                    }}
-                                  >
-                                    {dub.name}
-                                  </button>
-                                ))}
+                          {vcloudServers && (
+                            <div style={{ marginTop: '12px' }}>
+                              <h4 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#94a3b8' }}>Available Fast Servers:</h4>
+                              <div className="download-cards-grid">
+                                {Object.entries(vcloudServers).map(([serverName, serverUrl]) => {
+                                  const dlUrl = `/api/stream?url=${encodeURIComponent(serverUrl)}&title=${encodeURIComponent(selectedItem.title)}&res=${serverName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}`;
+                                  return (
+                                    <a
+                                      key={serverName}
+                                      className="dl-card-link"
+                                      href="#"
+                                      onClick={(e) => triggerDownload(dlUrl, selectedItem.title, e)}
+                                      style={{ borderLeft: '3px solid #e50914' }}
+                                    >
+                                      <div className="dl-card-details-left">
+                                        <div className="dl-card-res">{serverName}</div>
+                                        <div className="dl-card-meta-line">VCloud Fast Speed CDN</div>
+                                      </div>
+                                      <span className="dl-card-icon-right">
+                                        {downloadingUrl === dlUrl ? '⏳' : '⬇'}
+                                      </span>
+                                    </a>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div className="download-loading">No downloads available.</div>
-                      )}
-
-                      {/* SUBTITLES / CAPTIONS */}
-                      {downloads.captions && downloads.captions.length > 0 && (
-                        <div className="subtitles-area-strip">
-                          <h4 className="subtitles-area-title">💬 Subtitles</h4>
-                          <div className="subtitles-chips-group">
-                            {downloads.captions.map((cap, i) => {
-                              const capUrl = cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}`;
-                              return (
-                                <a
-                                  key={i}
-                                  className="subtitle-chip-link"
-                                  href={capUrl}
-                                  onClick={(e) => {
-                                    if (cap.type !== 'redirect') {
-                                      triggerDownload(capUrl, e);
-                                    }
+                      </>
+                    ) : (
+                      <>
+                        {/* STANDARD AONEROOM DOWNLOAD INTERFACE */}
+                        {/* SEASON / EPISODE SELECTOR FOR TV/ANIME SHOWS */}
+                        {detail?.resource?.seasons && detail.resource.seasons.length > 0 && detail.resource.seasons[0].se > 0 && (
+                          <>
+                            <h3 className="modal-subheading">Seasons</h3>
+                            <div className="season-selector-tabs">
+                              {detail.resource.seasons.map(s => (
+                                <button
+                                  key={s.se}
+                                  className={`season-selector-pill ${selectedSeason === s.se ? 'active' : ''}`}
+                                  onClick={() => {
+                                    setSelectedSeason(s.se);
+                                    setSelectedEpisode(1);
+                                    setDownloads(null);
+                                    fetchDownloads(selectedItem.subjectId, s.se, 1, selectedItem.detailPath);
                                   }}
-                                  target={cap.type === 'redirect' ? "_blank" : undefined}
-                                  rel="noopener noreferrer"
                                 >
-                                  {cap.lanName || cap.lan}
-                                </a>
+                                  Season {s.se}
+                                </button>
+                              ))}
+                            </div>
+
+                            {(() => {
+                              const currentSeason = detail.resource.seasons.find(s => s.se === selectedSeason);
+                              if (!currentSeason) return null;
+                              const maxEp = currentSeason.maxEp || 1;
+                              return (
+                                <>
+                                  <h3 className="modal-subheading">Episodes</h3>
+                                  <div className="episodes-grid-selector">
+                                    {Array.from({ length: maxEp }, (_, i) => i + 1).map(ep => (
+                                      <button
+                                        key={ep}
+                                        className={`episode-selector-cell ${selectedEpisode === ep ? 'active' : ''}`}
+                                        onClick={() => handleEpisodeClick(selectedSeason, ep)}
+                                      >
+                                        {ep}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
                               );
-                            })}
+                            })()}
+                          </>
+                        )}
+
+                        {/* Movie Links / TV Load action triggers */}
+                        {detail?.resource?.seasons?.[0]?.se === 0 && !downloads && !downloadLoading && (
+                          <button
+                            className="btn-load-more"
+                            style={{ width: '100%', marginTop: '12px' }}
+                            onClick={() => fetchDownloads(selectedItem.subjectId, 0, 0, selectedItem.detailPath)}
+                          >
+                            🔗 Get Download Links
+                          </button>
+                        )}
+
+                        {detail?.resource?.seasons?.[0]?.se > 0 && !downloads && !downloadLoading && (
+                          <button
+                            className="btn-load-more"
+                            style={{ width: '100%' }}
+                            onClick={() => handleEpisodeClick(selectedSeason, selectedEpisode)}
+                          >
+                            🔗 Get Download Links for S{selectedSeason}E{selectedEpisode}
+                          </button>
+                        )}
+
+                        {/* DOWNLOAD RESOURCES LIST */}
+                        {downloadLoading && (
+                          <div className="download-loading">⏳ Fetching download links...</div>
+                        )}
+
+                        {downloads && (
+                          <div className="modal-download-area">
+                            <h3 className="modal-subheading">📥 Download Options {selectedSeason > 0 ? `(S${selectedSeason}E${selectedEpisode})` : ''}</h3>
+
+                            {downloads.error ? (
+                              <div style={{ padding: '16px', textAlign: 'center' }}>
+                                <p className="not-found-color" style={{ marginBottom: '12px' }}>
+                                  Failed to load resolutions: {downloads.error}
+                                </p>
+                                <button
+                                  className="btn-load-more"
+                                  style={{ padding: '8px 24px', fontSize: '13px', width: 'auto' }}
+                                  onClick={() => fetchDownloads(selectedItem.subjectId, selectedSeason, selectedEpisode, selectedItem.detailPath)}
+                                >
+                                  🔄 Retry
+                                </button>
+                              </div>
+                            ) : downloads.downloads && downloads.downloads.length > 0 ? (
+                              <div className="download-cards-grid">
+                                {downloads.downloads.map((dl, i) => {
+                                  if (dl.type === 'not_found' || dl.type === 'redirect' || dl.note === 'Opens in OmniSave') {
+                                    const isNotFound = dl.type === 'not_found';
+                                    return (
+                                      <div key={i} className="dl-card-link dl-card-disabled">
+                                        <div className="dl-card-details-left">
+                                          <div className="dl-card-res">
+                                            {dl.resolution}{typeof dl.resolution === 'number' ? 'p' : ''}
+                                          </div>
+                                          <div className="dl-card-meta-line">
+                                            {dl.format?.toUpperCase()} • {dl.size}
+                                          </div>
+                                          <div className="dl-card-note not-found-color">
+                                            {isNotFound ? 'Not Found' : 'Download Unavailable'}
+                                          </div>
+                                        </div>
+                                        <span className="dl-card-icon-right not-found-icon">
+                                          ❌
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                  const dlUrl = dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}`;
+                                  return (
+                                    <a
+                                      key={i}
+                                      className="dl-card-link"
+                                      href={dlUrl}
+                                      onClick={(e) => {
+                                        if (dl.type !== 'redirect') {
+                                          triggerDownload(dlUrl, detail?.subject?.title || selectedItem.title, e);
+                                        }
+                                      }}
+                                      target={dl.type === 'redirect' ? "_blank" : undefined}
+                                      rel="noopener noreferrer"
+                                    >
+                                      <div className="dl-card-details-left">
+                                        <div className="dl-card-res">
+                                          {dl.resolution}{typeof dl.resolution === 'number' ? 'p' : ''}
+                                        </div>
+                                        <div className="dl-card-meta-line">
+                                          {dl.format?.toUpperCase()} • {dl.size}
+                                        </div>
+                                        {dl.note && (
+                                          <div className="dl-card-note">{dl.note}</div>
+                                        )}
+                                      </div>
+                                      <span className="dl-card-icon-right">
+                                        {downloadingUrl === dlUrl ? '⏳' : dl.type === 'redirect' ? '🔗' : dl.type === 'stream' ? '▶️' : '⬇'}
+                                      </span>
+                                    </a>
+                                  );
+                                })}
+
+                                {/* Dubs if present */}
+                                {downloads.downloads[0]?.dubs && downloads.downloads[0].dubs.length > 0 && (
+                                  <div className="dl-dubs-strip">
+                                    <div className="dl-dubs-title">🌐 Alternative Versions / Languages:</div>
+                                    <div className="subtitles-chips-group">
+                                      {downloads.downloads[0].dubs.map((dub, i) => (
+                                        <button
+                                          key={i}
+                                          className="subtitle-chip-link"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            fetchDownloads(dub.subjectId, 0, 0, dub.detailPath);
+                                          }}
+                                        >
+                                          {dub.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="download-loading">No downloads available.</div>
+                            )}
+
+                            {/* SUBTITLES / CAPTIONS */}
+                            {downloads.captions && downloads.captions.length > 0 && (
+                              <div className="subtitles-area-strip">
+                                <h4 className="subtitles-area-title">💬 Subtitles</h4>
+                                <div className="subtitles-chips-group">
+                                  {downloads.captions.map((cap, i) => {
+                                    const capUrl = cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}`;
+                                    return (
+                                      <a
+                                        key={i}
+                                        className="subtitle-chip-link"
+                                        href={capUrl}
+                                        onClick={(e) => {
+                                          if (cap.type !== 'redirect') {
+                                            triggerDownload(capUrl, detail?.subject?.title || selectedItem.title, e);
+                                          }
+                                        }}
+                                        target={cap.type === 'redirect' ? "_blank" : undefined}
+                                        rel="noopener noreferrer"
+                                      >
+                                        {cap.lanName || cap.lan}
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>

@@ -61,7 +61,7 @@ export async function GET(request) {
     if (se && se !== '0') {
       const sStr = `S${String(se).padStart(2, '0')}`;
       const eStr = `E${String(ep || 1).padStart(2, '0')}`;
-      parts.push(sStr, eStr);
+      parts.push(`${sStr}${eStr}`);
     }
     
     let resStr = resolution;
