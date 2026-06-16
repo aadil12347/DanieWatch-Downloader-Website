@@ -1,14 +1,7 @@
 import { NextResponse } from 'next/server';
+import { fetchViaScriptProxy } from '../../../lib/proxy-fetch.js';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-function getFetchUrl(url) {
-  const proxyUrl = process.env.CLOUDFLARE_WORKER_PROXY_URL;
-  if (proxyUrl && proxyUrl.startsWith('http') && !proxyUrl.includes('your-subdomain')) {
-    return `${proxyUrl.replace(/\/$/, '')}/?url=${encodeURIComponent(url)}`;
-  }
-  return url;
-}
 
 
 const AD_KEYWORDS = [
@@ -30,8 +23,7 @@ export async function POST(req) {
     console.log(`[VCloud Extractor] Extracting URL: ${url}`);
     
     // Step 1: Fetch Base Landing Page
-    const fetchUrl = getFetchUrl(url);
-    const landingPageResponse = await fetch(fetchUrl, {
+    const landingPageResponse = await fetchViaScriptProxy(url, {
       headers: { 'User-Agent': USER_AGENT }
     });
 
@@ -98,8 +90,7 @@ export async function POST(req) {
     }
 
     // Step 4: Fetch Token Page (set Referer header)
-    const fetchTokenUrl = getFetchUrl(tokenUrl);
-    const tokenResponse = await fetch(fetchTokenUrl, {
+    const tokenResponse = await fetchViaScriptProxy(tokenUrl, {
       headers: {
         'User-Agent': USER_AGENT,
         'Referer': url
@@ -211,10 +202,8 @@ async function traceHubCloudRedirect(initialUrl) {
       return urlObj.searchParams.get('link');
     }
 
-    const fetchCurrentUrl = getFetchUrl(currentUrl);
-    const response = await fetch(fetchCurrentUrl, {
+    const response = await fetchViaScriptProxy(currentUrl, {
       method: 'GET',
-      redirect: 'manual',
       headers: { 'User-Agent': USER_AGENT }
     });
 

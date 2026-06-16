@@ -605,13 +605,11 @@ export default function HomePage() {
       }
     } catch (err) {
       setVcloudError(err.message || 'An error occurred during link extraction.');
-      setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: 'Opening Download Page...' }));
-      showToast('Opening download page directly...', 'info');
-      // Fallback: Open VCloud landing page directly in a new tab where user can solve challenges
+      setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: 'Extraction Failed' }));
+      showToast('Link extraction failed. Please try again.', 'error');
       setTimeout(() => {
-        window.open(vcloudUrl, '_blank');
         setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: null }));
-      }, 1500);
+      }, 3000);
     } finally {
       setVcloudExtractingRes(null);
     }
