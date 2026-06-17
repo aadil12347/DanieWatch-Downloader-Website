@@ -36,11 +36,8 @@ export async function POST(req) {
           'User-Agent': USER_AGENT,
           'Referer': url
         },
-        // Token page generates download links via JavaScript AJAX
-        // Use ScrapingAnt directly (skips slow Scrape.do super mode)
-        // ScrapingAnt browser mode handles JS rendering natively
-        useScrapingAntOnly: true,
-        waitForSelector: '#fsl',     // Wait for FSL download link to appear
+        // The token page download links (FSL, FSLv2, HubCloud) are in the raw HTML.
+        // We do not need a headless browser to render JavaScript.
         timeoutMs: 25000             // 25s timeout (within Vercel 30s edge limit)
       });
 
@@ -172,9 +169,13 @@ function parseServerLinks(html) {
     const idMatch = attributes.match(/id=["']([^"']+)["']/i);
     const id = idMatch ? idMatch[1] : '';
 
-    // Server 1 (FSL): appends '1' + current minute
+    // Server 1 (FSL): appends '1' + current minute unless cloudflare storage links
     if (id === 'fsl' || innerHtml.includes('[FSL Server]')) {
-      resolved['Server 1'] = `${href}1${currentMinute}`;
+      if (hrefLower.includes('x-amz-signature') || hrefLower.includes('r2.cloudflarestorage') || hrefLower.includes('r2.dev')) {
+        resolved['Server 1'] = href;
+      } else {
+        resolved['Server 1'] = `${href}1${currentMinute}`;
+      }
     }
     // Server 2 (FSLv2): appends '_1' + current minute unless cloudflare storage links
     else if (id === 's3' || innerHtml.includes('[FSLv2 Server]')) {
