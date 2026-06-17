@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { APK_DOWNLOAD_URL } from '../lib/app-config.js';
 
 const TYPE_MAP = { 1: 'movie', 2: 'tv', 3: 'anime', 7: 'short-tv' };
 const BADGE_CLASS = { movie: 'badge-movie', tv: 'badge-tv', anime: 'badge-anime', 'short-tv': 'badge-tv' };
@@ -25,11 +26,9 @@ function cleanTitle(title) {
 }
 
 export default function HomePage() {
-  // PWA Install state
-  const [showInstallBtn, setShowInstallBtn] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(false);
-  const [platform, setPlatform] = useState('desktop'); // 'ios', 'android', 'desktop'
-  const deferredPromptRef = useRef(null);
+  // Native app detection & install modal state
+  const [isInNativeApp, setIsInNativeApp] = useState(false);
+  const [showAppInstallModal, setShowAppInstallModal] = useState(false);
 
   // Search state
   const [query, setQuery] = useState('');
@@ -105,76 +104,14 @@ export default function HomePage() {
     }, 4000);
   };
 
-  // PWA & Service Worker Logic
+  // Detect if running inside native WebView wrapper
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('Service Worker registered successfully:', reg.scope))
-        .catch((err) => console.error('Service Worker registration failed:', err));
+    if (typeof window !== 'undefined' && window.DanieWatchBridge) {
+      setIsInNativeApp(true);
     }
-
-    // Detect platform
-    const ua = navigator.userAgent;
-    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-    const isAndroid = /Android/.test(ua);
-    if (isIOS) {
-      setPlatform('ios');
-    } else if (isAndroid) {
-      setPlatform('android');
-    } else {
-      setPlatform('desktop');
-    }
-
-    // Check if running in standalone mode (i.e. already installed)
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    if (isStandalone) {
-      setShowInstallBtn(false);
-      return;
-    }
-
-    // Show install button by default if not standalone on all devices
-    setShowInstallBtn(true);
-
-    // Listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      deferredPromptRef.current = e;
-      setShowInstallBtn(true);
-    };
-
-    // Listen for appinstalled event
-    const handleAppInstalled = () => {
-      setShowInstallBtn(false);
-      deferredPromptRef.current = null;
-      showToast('DanieWatch App installed successfully!', 'success');
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
   }, []);
 
-  const handleInstallClick = () => {
-    if (deferredPromptRef.current) {
-      deferredPromptRef.current.prompt();
-      deferredPromptRef.current.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === 'accepted') {
-          setShowInstallBtn(false);
-        }
-        deferredPromptRef.current = null;
-      });
-    } else {
-      // Toggle platform-specific instructions
-      setShowInstructions(prev => !prev);
-    }
-  };
+
 
   // Add Item to Whitelist index
   const addToIndex = async (item) => {
@@ -345,6 +282,13 @@ export default function HomePage() {
 
   // ---- DETAIL ----
   const openDetail = async (item) => {
+    // If VCloud item and NOT in native app, show install modal instead of detail page
+    const isGithubItemCheck = item.fromGithubCatalog || String(item.subjectId).startsWith('github_');
+    if (isGithubItemCheck && !isInNativeApp) {
+      setShowAppInstallModal(true);
+      return;
+    }
+
     setSelectedItem(item);
     setDetail(null);
     setDownloads(null);
@@ -557,6 +501,47 @@ export default function HomePage() {
   }, [selectedItem, vcloudSelectedSeason, vcloudSelectedEpisode, whitelist]);
 
   const handleVcloudExtract = async (vcloudUrl, resolutionName) => {
+    // If in native app, use the WebView bridge for extraction
+    if (isInNativeApp && window.DanieWatchBridge) {
+      setVcloudExtractingRes(resolutionName);
+      setVcloudError(null);
+      setVcloudServers(null);
+      try {
+        const result = window.DanieWatchBridge.extractVCloud(vcloudUrl);
+        const servers = JSON.parse(result);
+        setVcloudServers(servers);
+        const priorityOrder = ['Server 1', 'Server 2', 'Server 3'];
+        let selectedServerUrl = null;
+        let selectedServerName = null;
+        for (const name of priorityOrder) {
+          if (servers[name]) {
+            selectedServerUrl = servers[name];
+            selectedServerName = name;
+            break;
+          }
+        }
+        if (!selectedServerUrl) {
+          const available = Object.keys(servers);
+          if (available.length > 0) {
+            selectedServerName = available[0];
+            selectedServerUrl = servers[selectedServerName];
+          }
+        }
+        if (selectedServerUrl) {
+          window.location.href = selectedServerUrl;
+          showToast('Download started!', 'success');
+        } else {
+          throw new Error('No download servers found.');
+        }
+      } catch (err) {
+        setVcloudError(err.message || 'Native extraction failed.');
+        showToast('Link extraction failed.', 'error');
+      } finally {
+        setVcloudExtractingRes(null);
+      }
+      return;
+    }
+
     setVcloudExtractingRes(resolutionName);
     setVcloudError(null);
     setVcloudServers(null);
@@ -1014,13 +999,23 @@ export default function HomePage() {
           </div>
 
           <div className="header-actions">
-            {/* Fake App button */}
-            <button className="btn-primary">
-              <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-              </svg>
-              <span>App</span>
-            </button>
+            {/* Install App button - downloads APK */}
+            {!isInNativeApp && (
+              <button className="btn-primary btn-install-app" onClick={() => {
+                if (APK_DOWNLOAD_URL && APK_DOWNLOAD_URL !== '#paste-download-link-here') {
+                  window.location.href = APK_DOWNLOAD_URL;
+                } else {
+                  showToast('App download link coming soon!', 'info');
+                }
+              }}>
+                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Install App</span>
+              </button>
+            )}
 
             {/* Language Selection */}
             <button className="btn-lang">
@@ -1654,46 +1649,65 @@ export default function HomePage() {
         Created by Daniyal with ❤️
       </footer>
 
-      {/* PWA INSTALL FAB */}
-      {showInstallBtn && (
+      {/* APP INSTALL FLOATING BUTTON */}
+      {!isInNativeApp && (
         <div className="pwa-install-container">
-          {showInstructions && (
-            <div className="pwa-instructions-box">
-              <div className="pwa-instructions-arrow" />
-              <button className="pwa-instructions-close" onClick={() => setShowInstructions(false)}>✕</button>
-              <h4 className="pwa-instructions-title">Install DanieWatch</h4>
-              
-              {platform === 'ios' && (
-                <p className="pwa-instructions-text">
-                  Tap the Share icon <span className="pwa-instructions-icon-span">📤</span> at the bottom of your Safari browser, then scroll down and select <strong className="pwa-instructions-bold">Add to Home Screen</strong> <span className="pwa-instructions-icon-span">➕</span>.
-                </p>
-              )}
-              
-              {platform === 'android' && (
-                <p className="pwa-instructions-text">
-                  Tap the menu button <span className="pwa-instructions-bold">(three dots)</span> in the top-right corner of Chrome, and select <strong className="pwa-instructions-bold">Install app</strong> or <strong className="pwa-instructions-bold">Add to Home screen</strong>.
-                </p>
-              )}
-              
-              {platform === 'desktop' && (
-                <p className="pwa-instructions-text">
-                  Click the <strong className="pwa-instructions-bold">Install</strong> icon in the address bar (top right of your browser) or open the menu and choose <strong className="pwa-instructions-bold">Save and share → Install app</strong>.
-                </p>
-              )}
-            </div>
-          )}
-          <button 
-            className="pwa-install-fab" 
-            onClick={handleInstallClick}
-            aria-label="Install App"
+          <button
+            className="pwa-install-fab"
+            onClick={() => {
+              if (APK_DOWNLOAD_URL && APK_DOWNLOAD_URL !== '#paste-download-link-here') {
+                window.location.href = APK_DOWNLOAD_URL;
+              } else {
+                showToast('App download link coming soon!', 'info');
+              }
+            }}
+            aria-label="Download App"
           >
             <svg className="pwa-install-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span className="pwa-install-tooltip">Install</span>
+            <span className="pwa-install-tooltip">Download App</span>
           </button>
+        </div>
+      )}
+
+      {/* APP INSTALL MODAL (shown when VCloud content is tapped on regular browser) */}
+      {showAppInstallModal && (
+        <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setShowAppInstallModal(false)}>
+          <div className="app-install-modal" data-lenis-prevent>
+            <button className="modal-exit-button" onClick={() => setShowAppInstallModal(false)}>✕</button>
+            <div className="app-install-modal-icon">⚡</div>
+            <h2 className="app-install-modal-title">Premium Download Servers</h2>
+            <p className="app-install-modal-desc">
+              Install the DanieWatch app to unlock premium VCloud download servers with direct high-speed links.
+            </p>
+            <div className="app-install-modal-features">
+              <div className="app-install-feature"><span>✅</span> Direct download links — no redirects</div>
+              <div className="app-install-feature"><span>✅</span> Multiple servers (FSL, FSLv2, 10Gbps)</div>
+              <div className="app-install-feature"><span>✅</span> Resume support for large files</div>
+              <div className="app-install-feature"><span>✅</span> Cloudflare bypass — works every time</div>
+            </div>
+            <button
+              className="app-install-modal-btn"
+              onClick={() => {
+                if (APK_DOWNLOAD_URL && APK_DOWNLOAD_URL !== '#paste-download-link-here') {
+                  window.location.href = APK_DOWNLOAD_URL;
+                } else {
+                  showToast('App download link coming soon!', 'info');
+                }
+              }}
+            >
+              <svg style={{ width: '20px', height: '20px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download DanieWatch App
+            </button>
+            <p className="app-install-modal-hint">Android 7.0+ required • Lightweight ~5MB</p>
+          </div>
         </div>
       )}
     </div>

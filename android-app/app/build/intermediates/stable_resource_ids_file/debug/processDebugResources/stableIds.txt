@@ -1,0 +1,7 @@
+com.daniewatch.app:xml/network_security_config = 0x7f060000
+com.daniewatch.app:style/Theme.DanieWatch = 0x7f050000
+com.daniewatch.app:string/app_name = 0x7f040000
+com.daniewatch.app:mipmap/ic_launcher_round = 0x7f030001
+com.daniewatch.app:mipmap/ic_launcher = 0x7f030000
+com.daniewatch.app:drawable/ic_launcher_foreground = 0x7f020000
+com.daniewatch.app:color/ic_launcher_background = 0x7f010000

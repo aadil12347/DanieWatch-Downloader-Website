@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#E50914</color>
+    <string name="app_name">DanieWatch</string>
+    <style name="Theme.DanieWatch" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#050507</item>
+        <item name="android:statusBarColor">#050507</item>
+        <item name="android:navigationBarColor">#050507</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

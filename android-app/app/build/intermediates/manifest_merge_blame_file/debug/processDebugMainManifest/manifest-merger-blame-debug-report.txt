@@ -1,0 +1,72 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.daniewatch.app"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:4:5-67
+11-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:4:22-64
+12    <uses-permission
+12-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:5:5-6:38
+13        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+13-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:5:22-78
+14        android:maxSdkVersion="28" />
+14-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:6:9-35
+15    <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
+15-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:7:5-88
+15-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:7:22-85
+16    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+16-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:8:5-79
+16-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:8:22-76
+17
+18    <application
+18-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:10:5-32:19
+19        android:allowBackup="true"
+19-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:11:9-35
+20        android:debuggable="true"
+21        android:extractNativeLibs="false"
+22        android:icon="@mipmap/ic_launcher"
+22-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:12:9-43
+23        android:label="DanieWatch"
+23-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:13:9-35
+24        android:networkSecurityConfig="@xml/network_security_config"
+24-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:18:9-69
+25        android:roundIcon="@mipmap/ic_launcher_round"
+25-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:14:9-54
+26        android:supportsRtl="true"
+26-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:15:9-35
+27        android:theme="@style/Theme.DanieWatch"
+27-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:16:9-48
+28        android:usesCleartextTraffic="true" >
+28-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:17:9-44
+29        <activity
+29-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:20:9-30:20
+30            android:name="com.daniewatch.app.MainActivity"
+30-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:21:13-41
+31            android:configChanges="orientation|screenSize|keyboardHidden"
+31-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:23:13-74
+32            android:exported="true"
+32-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:22:13-36
+33            android:launchMode="singleTask"
+33-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:24:13-44
+34            android:screenOrientation="portrait" >
+34-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:25:13-49
+35            <intent-filter>
+35-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:26:13-29:29
+36                <action android:name="android.intent.action.MAIN" />
+36-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:27:17-69
+36-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:27:25-66
+37
+38                <category android:name="android.intent.category.LAUNCHER" />
+38-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:28:17-77
+38-->E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:28:27-74
+39            </intent-filter>
+40        </activity>
+41    </application>
+42
+43</manifest>
