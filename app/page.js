@@ -1235,8 +1235,9 @@ export default function HomePage() {
               <div className="results-grid-layout">
                 {results.map((item) => {
                   const isGithubItem = item.fromGithubCatalog || String(item.subjectId).startsWith('github_');
+                  const isCardLocked = isGithubItem && !isInNativeApp;
                   return (
-                    <div key={item.subjectId} className="media-card" onClick={() => openDetail(item)}>
+                    <div key={item.subjectId} className={`media-card ${isCardLocked ? 'media-card-locked' : ''}`} onClick={() => openDetail(item)}>
                       <div className="media-card-poster">
                         {item.cover?.url && (
                           <img
@@ -1244,6 +1245,14 @@ export default function HomePage() {
                             alt={item.title}
                             loading="lazy"
                           />
+                        )}
+                        {isCardLocked && (
+                          <div className="media-card-lock-overlay">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lock-icon-svg">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                          </div>
                         )}
                         {isGithubItem && (
                           <span className="premium-server-badge">

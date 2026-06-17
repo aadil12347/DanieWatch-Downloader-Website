@@ -2047,3 +2047,45 @@ html.lenis, html.lenis body {
   }
 }
 
+/* ===== LOCKED CARD STYLES (WEBSITE ONLY) ===== */
+.media-card-locked {
+  position: relative;
+}
+
+.media-card-locked .media-card-poster img {
+  filter: grayscale(85%) opacity(0.55) brightness(0.7);
+  transition: var(--transition);
+}
+
+.media-card-locked:hover .media-card-poster img {
+  filter: grayscale(70%) opacity(0.65) brightness(0.8);
+  transform: none !important; /* Disable zoom effect for locked cards */
+}
+
+.media-card-lock-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  transition: var(--transition);
+  pointer-events: none;
+}
+
+.lock-icon-svg {
+  width: 40px;
+  height: 40px;
+  stroke: rgba(255, 255, 255, 0.5);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+  transition: var(--transition);
+}
+
+.media-card-locked:hover .lock-icon-svg {
+  stroke: rgba(255, 255, 255, 0.85);
+  transform: scale(1.05);
+}
+
+

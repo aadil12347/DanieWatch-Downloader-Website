@@ -286,21 +286,25 @@ export async function POST(request) {
       }
     }
 
-    // Sort original AoneRoom items with Punjabi prioritized first, then Hindi
+    // Sort original AoneRoom items with Hindi prioritized first, then English, then Punjabi
     const cleanSearchKeyword = cleanText(searchKeyword);
     const sortedItems = [...filteredItems].sort((a, b) => {
       const getWeight = (item) => {
         if (!item || !item.title) return 0;
         const isExact = cleanText(item.title) === cleanSearchKeyword;
-        const hasPunjabi = /\[\s*punjabi\s*\]/i.test(item.title) || /\bpunjabi\b/i.test(item.title);
         const hasHindi = /\[\s*hindi\s*\]/i.test(item.title) || /\bhindi\b/i.test(item.title);
+        const hasEnglish = /\[\s*(english|eng)\s*\]/i.test(item.title) || /\b(english|eng)\b/i.test(item.title);
+        const hasPunjabi = /\[\s*punjabi\s*\]/i.test(item.title) || /\bpunjabi\b/i.test(item.title);
         
-        if (isExact && hasPunjabi) return 5;
-        if (isExact && hasHindi) return 4;
-        if (isExact) return 3;
-        if (hasPunjabi) return 2;
-        if (hasHindi) return 1;
-        return 0;
+        let langWeight = 0;
+        if (hasHindi) langWeight = 3;
+        else if (hasEnglish) langWeight = 2;
+        else if (hasPunjabi) langWeight = 1;
+
+        let baseWeight = 0;
+        if (isExact) baseWeight = 10;
+
+        return baseWeight + langWeight;
       };
       return getWeight(b) - getWeight(a);
     });
