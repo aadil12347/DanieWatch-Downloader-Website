@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getStreamingJsonUrl, fetchStreamLinksMap, parseVcloudLayout, getResolutionsWithSize } from '@/lib/stream-resolver';
 
+// Edge runtime gives 30-second timeout (vs 10s Node.js on Vercel Hobby)
+// Needed because getResolutionsWithSize fetches VCloud pages via Scrape.do
+export const runtime = 'edge';
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);

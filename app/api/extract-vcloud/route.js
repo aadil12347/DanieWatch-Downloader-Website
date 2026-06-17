@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { fetchViaScriptProxy } from '../../../lib/proxy-fetch.js';
 
+// Edge runtime gives us 30-second timeout (vs 10s for Node.js on Vercel Hobby)
+// This is critical because Scrape.do's super mode needs 10-30s to solve Cloudflare Turnstile
+export const runtime = 'edge';
+
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 
@@ -74,7 +78,7 @@ export async function POST(req) {
       const atobMatch = html.match(/url\s*=\s*atob\(['"]([A-Za-z0-9+/=]+)['"]\)/i);
       if (atobMatch) {
         try {
-          tokenUrl = Buffer.from(atobMatch[1], 'base64').toString('utf-8');
+          tokenUrl = atob(atobMatch[1]);
         } catch (e) {
           console.error('[VCloud Extractor] Failed to decode base64 URL', e);
         }
