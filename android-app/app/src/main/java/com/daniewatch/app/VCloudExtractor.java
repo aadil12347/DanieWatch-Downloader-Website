@@ -1,25 +1,35 @@
 package com.daniewatch.app;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * VCloudExtractor — Handles background WebView extraction of VCloud download links.
  *
  * Flow:
  * 1. Load the VCloud page URL in a hidden WebView
- * 2. Once loaded, inject JS to find the double-base64 token: atob(atob('...'))
- * 3. Decode the token to get the redirect/token page URL
- * 4. Load that token URL with the correct Referer header
- * 5. Once loaded, inject JS to extract all download server links (FSL, FSLv2, HubCloud, etc.)
- * 6. Return the result as JSON to the callback
+ * 2. Once loaded, inject JS to find the token URL (using single/double atob or var matches)
+ * 3. Load that token URL with the correct Referer header
+ * 4. Once loaded, inject JS to extract Server 1 (FSL), Server 2 (FSLv2), and Server 3 (HubCloud) links
+ * 5. Apply time obfuscation suffixes (UTC minutes) to Server 1 and Server 2 links matching Next.js route logic
+ * 6. Spin up a background thread to trace HubCloud redirect chain for Server 3 to fetch direct link
+ * 7. Return the final resolved server links JSON to the callback
  */
 public class VCloudExtractor {
 
@@ -46,15 +56,15 @@ public class VCloudExtractor {
         hiddenWebView = new WebView(context);
         configureHiddenWebView(hiddenWebView);
 
-        // Timeout after 25 seconds
+        // Timeout after 28 seconds
         final boolean[] completed = {false};
         mainHandler.postDelayed(() -> {
             if (!completed[0]) {
                 completed[0] = true;
-                callback.onError("Extraction timed out after 25 seconds.");
+                callback.onError("Extraction timed out after 28 seconds.");
                 cleanup();
             }
-        }, 25000);
+        }, 28000);
 
         hiddenWebView.setWebViewClient(new WebViewClient() {
             boolean isSecondStage = false;
@@ -65,22 +75,45 @@ public class VCloudExtractor {
                 if (completed[0]) return;
 
                 if (!isSecondStage) {
-                    // PHASE 1: Extract the double-base64 encoded token URL
+                    // PHASE 1: Extract the token URL
                     String extractTokenJS = 
                         "(function() {" +
                         "  try {" +
                         "    var html = document.documentElement.innerHTML;" +
-                        "    // Look for atob(atob('...')) pattern" +
-                        "    var m = html.match(/atob\\(atob\\(['\"]([A-Za-z0-9+\\/=]+)['\"]\\)\\)/i);" +
-                        "    if (m && m[1]) {" +
-                        "      return atob(atob(m[1]));" +
+                        "    " +
+                        "    // 1. Check var url = '...'" +
+                        "    var m1 = html.match(/var\\s+url\\s*=\\s*['\"](https?:\\/\\/[^'\"]+)['\"]/i);" +
+                        "    if (m1 && m1[1]) return m1[1];" +
+                        "    " +
+                        "    // 2. Check id=\"download\" or download text matches" +
+                        "    var links = document.querySelectorAll('a');" +
+                        "    for (var i = 0; i < links.length; i++) {" +
+                        "      var a = links[i];" +
+                        "      var id = a.getAttribute('id') || '';" +
+                        "      var text = (a.textContent || '').toLowerCase();" +
+                        "      if (id === 'download' || text.indexOf('generate direct download') !== -1 || text.indexOf('generate download') !== -1) {" +
+                        "        var href = a.href;" +
+                        "        if (href && href.startsWith('http')) return href;" +
+                        "      }" +
                         "    }" +
-                        "    // Fallback: look for direct token URL patterns" +
-                        "    var m2 = html.match(/var\\s+url\\s*=\\s*['\"]([^'\"]+\\.html[^'\"]*)['\"]/);" +
-                        "    if (m2 && m2[1]) return m2[1];" +
-                        "    // Fallback: look for window.location patterns" +
-                        "    var m3 = html.match(/window\\.location\\.href\\s*=\\s*['\"]([^'\"]+)['\"]/);" +
-                        "    if (m3 && m3[1]) return m3[1];" +
+                        "    " +
+                        "    // 3. Check double atob" +
+                        "    var m3 = html.match(/atob\\(atob\\(['\"]([A-Za-z0-9+\\/=]+)['\"]\\)\\)/i);" +
+                        "    if (m3 && m3[1]) return atob(atob(m3[1]));" +
+                        "    " +
+                        "    // 4. Check single atob" +
+                        "    var m4 = html.match(/url\\s*=\\s*atob\\(['\"]([A-Za-z0-9+\\/=]+)['\"]\\)/i);" +
+                        "    if (m4 && m4[1]) return atob(m4[1]);" +
+                        "    " +
+                        "    // 5. Fallback check for relative URLs inside var url" +
+                        "    var m5 = html.match(/var\\s+url\\s*=\\s*['\"]([^'\"]+)['\"]/i);" +
+                        "    if (m5 && m5[1]) {" +
+                        "      if (m5[1].startsWith('http')) return m5[1];" +
+                        "      var l = document.createElement('a');" +
+                        "      l.href = m5[1];" +
+                        "      return l.href;" +
+                        "    }" +
+                        "    " +
                         "    return null;" +
                         "  } catch(e) { return null; }" +
                         "})()";
@@ -94,8 +127,8 @@ public class VCloudExtractor {
                         }
 
                         if (tokenUrl == null || tokenUrl.equals("null") || tokenUrl.isEmpty()) {
-                            // Maybe the page already has the servers directly
-                            extractServersDirectly(view, callback, completed);
+                            // Maybe the page already has the server links directly
+                            extractServersDirectly(view, callback, completed, 0);
                             return;
                         }
 
@@ -107,10 +140,10 @@ public class VCloudExtractor {
                     });
                 } else {
                     // PHASE 2: Extract server download links from the token page
-                    // Wait a moment for any JS-rendered content
+                    // Wait a moment for any dynamically rendered content
                     mainHandler.postDelayed(() -> {
-                        extractServersDirectly(view, callback, completed);
-                    }, 2000);
+                        extractServersDirectly(view, callback, completed, 0);
+                    }, 1500);
                 }
             }
         });
@@ -120,70 +153,93 @@ public class VCloudExtractor {
     }
 
     /**
-     * Extract server links from the current page content.
+     * Extract server links from the current page content with retry polling support.
      */
-    private void extractServersDirectly(WebView view, ExtractCallback callback, boolean[] completed) {
+    private void extractServersDirectly(WebView view, ExtractCallback callback, boolean[] completed, int retryCount) {
         String extractServersJS =
             "(function() {" +
             "  try {" +
             "    var servers = {};" +
-            "    var html = document.documentElement.innerHTML;" +
-            "    " +
-            "    // Method 1: Look for labeled download links (FSL Server, etc.)" +
             "    var links = document.querySelectorAll('a[href]');" +
+            "    // CRITICAL: Must use UTC minutes to align with server validation times globally" +
+            "    var currentMinute = new Date().getUTCMinutes();" +
+            "    " +
+            "    var AD_KEYWORDS = ['bit.ly', 'tinyurl', 'cutt.ly', 'linkvertise', 'adf.ly', 'shorturl', 'doubleclick', 'popads', 'onclickads', 'exoclick', 'adsterra', 'adlink', 'winexch', 'lotus', 'bet', 'casino', '1xbet', 'mostbet', 'parimatch', 'melbet', 'dafanews', 'sportybet', 'betway', 'bet365', 'adsystem', 'adservices', 'googlesyndication', 'googleadservices'];" +
+            "    " +
+            "    var suffix1 = '1' + currentMinute;" +
+            "    var suffix2 = '_1' + currentMinute;" +
+            "    " +
             "    for (var i = 0; i < links.length; i++) {" +
             "      var a = links[i];" +
-            "      var href = a.href;" +
-            "      var text = (a.textContent || a.innerText || '').trim();" +
+            "      var href = a.getAttribute('href');" +
+            "      if (!href || href === '#' || href.startsWith('javascript:')) continue;" +
             "      " +
-            "      // Skip empty or javascript links" +
-            "      if (!href || href.startsWith('javascript:')) continue;" +
+            "      var absoluteHref = a.href;" +
+            "      var hrefLower = absoluteHref.toLowerCase();" +
             "      " +
-            "      // Match known server patterns" +
-            "      if (text.match(/server\\s*1|fsl\\b|fastdl/i) || href.match(/fastdl|fsl\\./i)) {" +
-            "        servers['Server 1'] = href;" +
-            "      } else if (text.match(/server\\s*2|fslv?2|hubcloud/i) || href.match(/hubcloud|fslv?2/i)) {" +
-            "        servers['Server 2'] = href;" +
-            "      } else if (text.match(/server\\s*3|10gbps|gdrive/i) || href.match(/10gbps|gdrive/i)) {" +
-            "        servers['Server 3'] = href;" +
-            "      } else if (text.match(/download|server/i) && href.match(/https?:\\/\\//)) {" +
-            "        var sNum = Object.keys(servers).length + 1;" +
-            "        servers['Server ' + sNum] = href;" +
+            "      // Filter non-media links" +
+            "      if (hrefLower.indexOf('css') !== -1 || hrefLower.indexOf('fonts') !== -1 || " +
+            "          hrefLower.indexOf('favicon') !== -1 || hrefLower.indexOf('manifest') !== -1 || " +
+            "          hrefLower.indexOf('telegram') !== -1 || hrefLower.indexOf('t.me') !== -1 || " +
+            "          hrefLower.indexOf('/tg/') !== -1 || hrefLower.indexOf('google.com') !== -1 ||" +
+            "          hrefLower.indexOf('github.com') !== -1 || hrefLower.indexOf('admin') !== -1 ||" +
+            "          hrefLower.indexOf('login') !== -1 || hrefLower.indexOf('signup') !== -1 ||" +
+            "          hrefLower.indexOf('hubcloud.php') !== -1) {" +
+            "        continue;" +
             "      }" +
-            "    }" +
-            "    " +
-            "    // Method 2: Look for onclick handlers with URLs" +
-            "    if (Object.keys(servers).length === 0) {" +
-            "      var btns = document.querySelectorAll('[onclick]');" +
-            "      for (var j = 0; j < btns.length; j++) {" +
-            "        var onclick = btns[j].getAttribute('onclick');" +
-            "        var urlMatch = onclick.match(/https?:\\/\\/[^'\"\\s]+/);" +
-            "        if (urlMatch) {" +
-            "          var bText = (btns[j].textContent || '').trim();" +
-            "          var sKey = bText || ('Server ' + (Object.keys(servers).length + 1));" +
-            "          servers[sKey] = urlMatch[0];" +
+            "      " +
+            "      // Filter ads" +
+            "      var isAd = false;" +
+            "      for (var k = 0; k < AD_KEYWORDS.length; k++) {" +
+            "        if (hrefLower.indexOf(AD_KEYWORDS[k]) !== -1) { isAd = true; break; }" +
+            "      }" +
+            "      if (isAd) continue;" +
+            "      " +
+            "      var id = (a.getAttribute('id') || '').trim();" +
+            "      var innerHtml = a.innerHTML || '';" +
+            "      " +
+            "      // Server 1 (FSL): appends '1' + currentMinute unless cloudflare storage links" +
+            "      if (id === 'fsl' || innerHtml.indexOf('[FSL Server]') !== -1) {" +
+            "        if (hrefLower.indexOf('x-amz-signature') !== -1 || hrefLower.indexOf('r2.cloudflarestorage') !== -1 || hrefLower.indexOf('r2.dev') !== -1) {" +
+            "          servers['Server 1'] = absoluteHref;" +
+            "        } else {" +
+            "          // Prevent double appending if already suffix matches" +
+            "          if (absoluteHref.endsWith(suffix1)) {" +
+            "            servers['Server 1'] = absoluteHref;" +
+            "          } else {" +
+            "            servers['Server 1'] = absoluteHref + suffix1;" +
+            "          }" +
             "        }" +
             "      }" +
-            "    }" +
-            "    " +
-            "    // Method 3: Regex fallback on raw HTML" +
-            "    if (Object.keys(servers).length === 0) {" +
-            "      var urlPattern = /https?:\\/\\/(?:fastdl|hubcloud|fsl|10gbps)[^'\"\\s<>]+/gi;" +
-            "      var matches = html.match(urlPattern);" +
-            "      if (matches) {" +
-            "        for (var k = 0; k < matches.length; k++) {" +
-            "          servers['Server ' + (k + 1)] = matches[k];" +
+            "      // Server 2 (FSLv2): appends '_1' + currentMinute unless cloudflare storage links" +
+            "      else if (id === 's3' || innerHtml.indexOf('[FSLv2 Server]') !== -1) {" +
+            "        if (hrefLower.indexOf('x-amz-signature') !== -1 || hrefLower.indexOf('r2.cloudflarestorage') !== -1 || hrefLower.indexOf('r2.dev') !== -1) {" +
+            "          servers['Server 2'] = absoluteHref;" +
+            "        } else {" +
+            "          // Prevent double appending if already suffix matches" +
+            "          if (absoluteHref.endsWith(suffix2)) {" +
+            "            servers['Server 2'] = absoluteHref;" +
+            "          } else {" +
+            "            servers['Server 2'] = absoluteHref + suffix2;" +
+            "          }" +
             "        }" +
             "      }" +
+            "      // Server 3 (HubCloud)" +
+            "      else if (" +
+            "        innerHtml.indexOf('[Server : 10Gbps]') !== -1 || " +
+            "        hrefLower.indexOf('pixel.hubcloud') !== -1 || " +
+            "        hrefLower.indexOf('gpdl') !== -1 || " +
+            "        (hrefLower.indexOf('hubcloud') !== -1 && hrefLower.indexOf('id=') !== -1)" +
+            "      ) {" +
+            "        servers['Server 3'] = absoluteHref;" +
+            "      }" +
             "    }" +
-            "    " +
             "    return JSON.stringify(servers);" +
             "  } catch(e) { return JSON.stringify({error: e.message}); }" +
             "})()";
 
         view.evaluateJavascript(extractServersJS, result -> {
             if (completed[0]) return;
-            completed[0] = true;
 
             if (result != null) {
                 // Remove surrounding quotes and unescape
@@ -197,12 +253,153 @@ public class VCloudExtractor {
             }
 
             if (result == null || result.equals("null") || result.equals("{}")) {
-                callback.onError("No download server links found on page.");
+                // Poll retry up to 6 times (3 seconds total) for async DOM updates
+                if (retryCount < 6) {
+                    mainHandler.postDelayed(() -> {
+                        extractServersDirectly(view, callback, completed, retryCount + 1);
+                    }, 500);
+                } else {
+                    completed[0] = true;
+                    callback.onError("No download server links found on page.");
+                    cleanup();
+                }
             } else {
-                callback.onResult(result);
+                final String initialResult = result;
+                
+                // Trace redirects in background thread
+                new Thread(() -> {
+                    String finalResult = initialResult;
+                    try {
+                        JSONObject json = new JSONObject(initialResult);
+                        if (json.has("Server 3")) {
+                            String server3Url = json.getString("Server 3");
+                            String directUrl = traceHubCloudRedirect(server3Url);
+                            if (directUrl != null && !directUrl.isEmpty()) {
+                                json.put("Server 3", directUrl);
+                                finalResult = json.toString();
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    final String callbackResult = finalResult;
+                    mainHandler.post(() -> {
+                        if (!completed[0]) {
+                            completed[0] = true;
+                            callback.onResult(callbackResult);
+                            cleanup();
+                        }
+                    });
+                }).start();
             }
-            cleanup();
         });
+    }
+
+    /**
+     * Follow redirects for HubCloud (Server 3) links.
+     */
+    private String traceHubCloudRedirect(String initialUrl) {
+        String currentUrl = initialUrl;
+        int hops = 0;
+        String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+        while (hops < 10) {
+            try {
+                Uri uri = Uri.parse(currentUrl);
+                String linkParam = uri.getQueryParameter("link");
+                if (linkParam != null && !linkParam.isEmpty()) {
+                    return linkParam;
+                }
+
+                URL url = new URL(currentUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setInstanceFollowRedirects(false); // Manual redirect follow
+                conn.setRequestProperty("User-Agent", userAgent);
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+
+                int status = conn.getResponseCode();
+                if (status >= 300 && status < 400) {
+                    String location = conn.getHeaderField("Location");
+                    if (location != null) {
+                        if (!location.startsWith("http")) {
+                            URL base = new URL(currentUrl);
+                            location = new URL(base, location).toString();
+                        }
+                        currentUrl = location;
+                        hops++;
+                        conn.disconnect();
+                        continue;
+                    }
+                }
+
+                // Read page body to check for JS window.location or HTML meta refreshes
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder body = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    body.append(inputLine).append("\n");
+                }
+                in.close();
+                conn.disconnect();
+
+                String bodyStr = body.toString();
+                
+                Pattern jsLocPattern = Pattern.compile("window\\.location\\s*=\\s*['\"](https?://[^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+                Pattern jsLocHrefPattern = Pattern.compile("window\\.location\\.href\\s*=\\s*['\"](https?://[^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+                Pattern metaRefreshPattern = Pattern.compile("<meta\\s+http-equiv=[\"']refresh[\"']\\s+content=[\"']\\d+;\\s*url=([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
+
+                Matcher m1 = jsLocPattern.matcher(bodyStr);
+                Matcher m2 = jsLocHrefPattern.matcher(bodyStr);
+                Matcher m3 = metaRefreshPattern.matcher(bodyStr);
+
+                String nextUrl = null;
+                if (m1.find()) {
+                    String val = m1.group(1);
+                    if (!val.contains("bonuscaf.com") && !val.contains("go/")) {
+                        nextUrl = val;
+                    }
+                }
+                if (nextUrl == null && m2.find()) {
+                    String val = m2.group(1);
+                    if (!val.contains("bonuscaf.com") && !val.contains("go/")) {
+                        nextUrl = val;
+                    }
+                }
+                if (nextUrl == null && m3.find()) {
+                    nextUrl = m3.group(1);
+                }
+
+                if (nextUrl != null) {
+                    if (!nextUrl.startsWith("http")) {
+                        URL base = new URL(currentUrl);
+                        nextUrl = new URL(base, nextUrl).toString();
+                    }
+                    currentUrl = nextUrl;
+                    hops++;
+                } else {
+                    break;
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                break;
+            }
+        }
+
+        try {
+            Uri uri = Uri.parse(currentUrl);
+            String linkParam = uri.getQueryParameter("link");
+            if (linkParam != null && !linkParam.isEmpty()) {
+                return linkParam;
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+
+        return currentUrl;
     }
 
     /**
@@ -213,12 +410,12 @@ public class VCloudExtractor {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT); // Default caching to bypass CloudflareTurnstile
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         settings.setMediaPlaybackRequiresUserGesture(true);
-        settings.setBlockNetworkImage(true); // Don't load images for speed
+        settings.setBlockNetworkImage(false); // Enable images — critical for Cloudflare challenge!
         
         // Use a desktop-like user agent to avoid mobile redirects
         settings.setUserAgentString(

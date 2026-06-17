@@ -80,9 +80,35 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
+                String urlLower = url.toLowerCase();
+
+                // 1. Intercept direct video download streams to bypass error page loads (404/403)
+                if (urlLower.contains("fastdl") || urlLower.contains("fsl.") || 
+                    urlLower.contains("hubcloud") || urlLower.contains("gpdl") || 
+                    urlLower.contains("r2.cloudflarestorage") || urlLower.contains("r2.dev")) {
+                    new DanieWatchBridge().startDownload(url, "DanieWatch Video");
+                    return true; // Cancel navigation
+                }
                 
-                // Keep navigation within the app for our domain
-                if (url.contains("daniewatch-downloader.vercel.app")) {
+                // 2. Keep navigation within the app for current domain dynamically
+                try {
+                    String currentUrl = view.getUrl();
+                    if (currentUrl != null) {
+                        String currentHost = Uri.parse(currentUrl).getHost();
+                        String targetHost = Uri.parse(url).getHost();
+                        if (currentHost != null && currentHost.equals(targetHost)) {
+                            return false; // Keep inside WebView
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore
+                }
+
+                // Local test / prod domains
+                if (url.contains("daniewatch-downloader.vercel.app") || 
+                    url.contains("localhost") || 
+                    url.contains("127.0.0.1") || 
+                    url.contains("10.0.2.2")) {
                     return false; // Let WebView handle it
                 }
                 
@@ -104,7 +130,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Inject a marker so the website knows it's in the native app
+                // Inject bridge marker so website detects the app environment
                 view.evaluateJavascript(
                     "if(!window.DanieWatchBridge){window.DanieWatchBridge={_native:true};}",
                     null
@@ -115,45 +141,12 @@ public class MainActivity extends Activity {
         // WebChromeClient for progress and console
         mainWebView.setWebChromeClient(new WebChromeClient());
 
-        // Download listener — handles direct file downloads
+        // Download listener — handles direct file downloads if triggered normally
         mainWebView.setDownloadListener(new DownloadListener() {
             @Override
             public void onDownloadStart(String url, String userAgent, String contentDisposition,
                                         String mimeType, long contentLength) {
-                try {
-                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-                    
-                    String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
-                    request.setTitle(fileName);
-                    request.setDescription("Downloading via DanieWatch...");
-                    request.setNotificationVisibility(
-                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                    request.setDestinationInExternalPublicDir(
-                        Environment.DIRECTORY_DOWNLOADS, fileName);
-                    request.setMimeType(mimeType);
-                    
-                    // Add cookies
-                    String cookies = CookieManager.getInstance().getCookie(url);
-                    if (cookies != null) {
-                        request.addRequestHeader("Cookie", cookies);
-                    }
-                    request.addRequestHeader("User-Agent", userAgent);
-
-                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-                    dm.enqueue(request);
-
-                    Toast.makeText(MainActivity.this,
-                        "Download started: " + fileName, Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    // Fallback: open in browser
-                    try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        startActivity(intent);
-                    } catch (Exception ex) {
-                        Toast.makeText(MainActivity.this,
-                            "Download failed", Toast.LENGTH_SHORT).show();
-                    }
-                }
+                new DanieWatchBridge().startDownload(url, "Video Download");
             }
         });
 
@@ -196,8 +189,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String extractVCloud(String vcloudUrl) {
-            // This runs on a WebView JS thread. We need to do the extraction
-            // on the main thread (WebView requirement) and block until done.
+            // Keep synchronous method for backward compatibility fallbacks
             final String[] result = new String[1];
             final Object lock = new Object();
 
@@ -231,6 +223,76 @@ public class MainActivity extends Activity {
             }
 
             return result[0] != null ? result[0] : "{\"error\":\"No result.\"}";
+        }
+
+        @JavascriptInterface
+        public void extractVCloudAsync(String vcloudUrl, String callbackName) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                vcloudExtractor.extract(MainActivity.this, vcloudUrl,
+                    new VCloudExtractor.ExtractCallback() {
+                        @Override
+                        public void onResult(String jsonResult) {
+                            String escapedResult = jsonResult.replace("\\", "\\\\").replace("'", "\\'");
+                            String jsCall = String.format(
+                                "if(window['%s']){window['%s']('%s', null);}",
+                                callbackName, callbackName, escapedResult
+                            );
+                            mainWebView.evaluateJavascript(jsCall, null);
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            String escapedError = error.replace("\\", "\\\\").replace("'", "\\'");
+                            String jsCall = String.format(
+                                "if(window['%s']){window['%s'](null, '%s');}",
+                                callbackName, callbackName, escapedError
+                            );
+                            mainWebView.evaluateJavascript(jsCall, null);
+                        }
+                    });
+            });
+        }
+
+        @JavascriptInterface
+        public void startDownload(String url, String title) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                try {
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                    
+                    // Sanitize file name
+                    String cleanTitle = title.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+                    String fileName = (cleanTitle.isEmpty() ? "DanieWatch_Video" : cleanTitle) + ".mp4";
+                    
+                    request.setTitle(cleanTitle.isEmpty() ? "DanieWatch Video" : cleanTitle);
+                    request.setDescription("Downloading file from source...");
+                    request.setNotificationVisibility(
+                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    request.setDestinationInExternalPublicDir(
+                        Environment.DIRECTORY_DOWNLOADS, fileName);
+                    
+                    // Hotlink headers to bypass hotlinking block on CDNs
+                    request.addRequestHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                    request.addRequestHeader("Referer", "https://vcloud.zip/");
+
+                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                    if (dm != null) {
+                        dm.enqueue(request);
+                        Toast.makeText(MainActivity.this,
+                            "Download started: " + fileName, Toast.LENGTH_SHORT).show();
+                    } else {
+                        throw new Exception("Download service not available");
+                    }
+                } catch (Exception e) {
+                    // Fallback to browser intent
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        startActivity(intent);
+                    } catch (Exception ex) {
+                        Toast.makeText(MainActivity.this,
+                            "Unable to download file", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
         }
 
         @JavascriptInterface

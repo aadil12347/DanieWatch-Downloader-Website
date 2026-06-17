@@ -501,43 +501,71 @@ export default function HomePage() {
   }, [selectedItem, vcloudSelectedSeason, vcloudSelectedEpisode, whitelist]);
 
   const handleVcloudExtract = async (vcloudUrl, resolutionName) => {
-    // If in native app, use the WebView bridge for extraction
+    // If in native app, use the WebView bridge for extraction asynchronously to avoid WebView deadlock
     if (isInNativeApp && window.DanieWatchBridge) {
       setVcloudExtractingRes(resolutionName);
       setVcloudError(null);
       setVcloudServers(null);
+      
+      const callbackName = 'vcloud_callback_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      window[callbackName] = (resultStr, errorStr) => {
+        // Cleanup global callback
+        delete window[callbackName];
+        setVcloudExtractingRes(null);
+
+        if (errorStr) {
+          setVcloudError(errorStr);
+          showToast('Link extraction failed.', 'error');
+          return;
+        }
+
+        try {
+          const servers = JSON.parse(resultStr);
+          setVcloudServers(servers);
+          const priorityOrder = ['Server 1', 'Server 2', 'Server 3'];
+          let selectedServerUrl = null;
+          let selectedServerName = null;
+          for (const name of priorityOrder) {
+            if (servers[name]) {
+              selectedServerUrl = servers[name];
+              selectedServerName = name;
+              break;
+            }
+          }
+          if (!selectedServerUrl) {
+            const available = Object.keys(servers);
+            if (available.length > 0) {
+              selectedServerName = available[0];
+              selectedServerUrl = servers[selectedServerName];
+            }
+          }
+          if (selectedServerUrl) {
+            if (isInNativeApp && window.DanieWatchBridge && window.DanieWatchBridge.startDownload) {
+              window.DanieWatchBridge.startDownload(selectedServerUrl, selectedItem?.title || 'Video Download');
+              showToast('Download queued in system!', 'success');
+            } else {
+              window.location.href = selectedServerUrl;
+              showToast('Download started!', 'success');
+            }
+          } else {
+            throw new Error('No download servers found.');
+          }
+        } catch (err) {
+          setVcloudError(err.message || 'Native extraction failed.');
+          showToast('Link extraction failed.', 'error');
+        }
+      };
+
       try {
-        const result = window.DanieWatchBridge.extractVCloud(vcloudUrl);
-        const servers = JSON.parse(result);
-        setVcloudServers(servers);
-        const priorityOrder = ['Server 1', 'Server 2', 'Server 3'];
-        let selectedServerUrl = null;
-        let selectedServerName = null;
-        for (const name of priorityOrder) {
-          if (servers[name]) {
-            selectedServerUrl = servers[name];
-            selectedServerName = name;
-            break;
-          }
-        }
-        if (!selectedServerUrl) {
-          const available = Object.keys(servers);
-          if (available.length > 0) {
-            selectedServerName = available[0];
-            selectedServerUrl = servers[selectedServerName];
-          }
-        }
-        if (selectedServerUrl) {
-          window.location.href = selectedServerUrl;
-          showToast('Download started!', 'success');
+        if (window.DanieWatchBridge.extractVCloudAsync) {
+          window.DanieWatchBridge.extractVCloudAsync(vcloudUrl, callbackName);
         } else {
-          throw new Error('No download servers found.');
+          // Fallback to sync if running an older app version
+          const result = window.DanieWatchBridge.extractVCloud(vcloudUrl);
+          window[callbackName](result, null);
         }
       } catch (err) {
-        setVcloudError(err.message || 'Native extraction failed.');
-        showToast('Link extraction failed.', 'error');
-      } finally {
-        setVcloudExtractingRes(null);
+        window[callbackName](null, err.message || 'Bridge call failed');
       }
       return;
     }
