@@ -4,9 +4,6 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
 import org.json.JSONObject;
 
@@ -20,20 +17,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * VCloudExtractor — Handles background WebView extraction of VCloud download links.
+ * VCloudExtractor — Handles background Java HTTP extraction of VCloud download links.
+ * Bypasses all WebView thread deadlocks.
  *
  * Flow:
- * 1. Load the VCloud page URL in a hidden WebView
- * 2. Once loaded, inject JS to find the token URL (using single/double atob or var matches)
- * 3. Load that token URL with the correct Referer header
- * 4. Once loaded, inject JS to extract Server 1 (FSL), Server 2 (FSLv2), and Server 3 (HubCloud) links
- * 5. Apply time obfuscation suffixes (UTC minutes) to Server 1 and Server 2 links matching Next.js route logic
- * 6. Spin up a background thread to trace HubCloud redirect chain for Server 3 to fetch direct link
- * 7. Return the final resolved server links JSON to the callback
+ * 1. Fetch the VCloud page HTML via HttpURLConnection
+ * 2. Parse the token URL (using single/double base64 atob, JS variables, or download buttons)
+ * 3. Fetch that token URL with the correct Referer header
+ * 4. Parse Server 1 (FSL), Server 2 (FSLv2), and Server 3 (HubCloud) links from the HTML
+ * 5. Apply time obfuscation suffixes (UTC minutes) to Server 1 and Server 2 links
+ * 6. Trace HubCloud redirect chain for Server 3 to fetch the direct URL
+ * 7. Return the final resolved server links JSON to the callback on the UI thread
  */
 public class VCloudExtractor {
 
-    private WebView hiddenWebView;
     private Handler mainHandler;
 
     public interface ExtractCallback {
@@ -47,253 +44,301 @@ public class VCloudExtractor {
 
     /**
      * Extract download server links from a VCloud URL.
-     * MUST be called from the main thread.
+     * Can be called from any thread.
      */
-    public void extract(Context context, String vcloudUrl, ExtractCallback callback) {
-        // Clean up any previous extraction
-        cleanup();
-
-        hiddenWebView = new WebView(context);
-        configureHiddenWebView(hiddenWebView);
-
-        // Timeout after 28 seconds
-        final boolean[] completed = {false};
-        mainHandler.postDelayed(() -> {
-            if (!completed[0]) {
-                completed[0] = true;
-                callback.onError("Extraction timed out after 28 seconds.");
-                cleanup();
-            }
-        }, 28000);
-
-        hiddenWebView.setWebViewClient(new WebViewClient() {
-            boolean isSecondStage = false;
-            String originalUrl = vcloudUrl;
-
+    public void extract(Context context, final String vcloudUrl, final ExtractCallback callback) {
+        new Thread(new Runnable() {
             @Override
-            public void onPageFinished(WebView view, String url) {
-                if (completed[0]) return;
+            public void run() {
+                try {
+                    Map<String, String> resolvedServers = performHttpExtraction(vcloudUrl);
+                    if (resolvedServers.isEmpty()) {
+                        mainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                callback.onError("No download server links found on page.");
+                            }
+                        });
+                        return;
+                    }
 
-                if (!isSecondStage) {
-                    // PHASE 1: Extract the token URL
-                    String extractTokenJS = 
-                        "(function() {" +
-                        "  try {" +
-                        "    var html = document.documentElement.innerHTML;" +
-                        "    " +
-                        "    // 1. Check var url = '...'" +
-                        "    var m1 = html.match(/var\\s+url\\s*=\\s*['\"](https?:\\/\\/[^'\"]+)['\"]/i);" +
-                        "    if (m1 && m1[1]) return m1[1];" +
-                        "    " +
-                        "    // 2. Check id=\"download\" or download text matches" +
-                        "    var links = document.querySelectorAll('a');" +
-                        "    for (var i = 0; i < links.length; i++) {" +
-                        "      var a = links[i];" +
-                        "      var id = a.getAttribute('id') || '';" +
-                        "      var text = (a.textContent || '').toLowerCase();" +
-                        "      if (id === 'download' || text.indexOf('generate direct download') !== -1 || text.indexOf('generate download') !== -1) {" +
-                        "        var href = a.href;" +
-                        "        if (href && href.startsWith('http')) return href;" +
-                        "      }" +
-                        "    }" +
-                        "    " +
-                        "    // 3. Check double atob" +
-                        "    var m3 = html.match(/atob\\(atob\\(['\"]([A-Za-z0-9+\\/=]+)['\"]\\)\\)/i);" +
-                        "    if (m3 && m3[1]) return atob(atob(m3[1]));" +
-                        "    " +
-                        "    // 4. Check single atob" +
-                        "    var m4 = html.match(/url\\s*=\\s*atob\\(['\"]([A-Za-z0-9+\\/=]+)['\"]\\)/i);" +
-                        "    if (m4 && m4[1]) return atob(m4[1]);" +
-                        "    " +
-                        "    // 5. Fallback check for relative URLs inside var url" +
-                        "    var m5 = html.match(/var\\s+url\\s*=\\s*['\"]([^'\"]+)['\"]/i);" +
-                        "    if (m5 && m5[1]) {" +
-                        "      if (m5[1].startsWith('http')) return m5[1];" +
-                        "      var l = document.createElement('a');" +
-                        "      l.href = m5[1];" +
-                        "      return l.href;" +
-                        "    }" +
-                        "    " +
-                        "    return null;" +
-                        "  } catch(e) { return null; }" +
-                        "})()";
-
-                    view.evaluateJavascript(extractTokenJS, tokenUrl -> {
-                        if (completed[0]) return;
-
-                        // Remove surrounding quotes from JS result
-                        if (tokenUrl != null) {
-                            tokenUrl = tokenUrl.replace("\"", "").trim();
+                    // Resolve Server 3 (HubCloud) redirects if present
+                    if (resolvedServers.containsKey("Server 3")) {
+                        String server3Url = resolvedServers.get("Server 3");
+                        String directUrl = traceHubCloudRedirect(server3Url);
+                        if (directUrl != null && !directUrl.isEmpty()) {
+                            resolvedServers.put("Server 3", directUrl);
                         }
+                    }
 
-                        if (tokenUrl == null || tokenUrl.equals("null") || tokenUrl.isEmpty()) {
-                            // Maybe the page already has the server links directly
-                            extractServersDirectly(view, callback, completed, 0);
-                            return;
+                    JSONObject resultJson = new JSONObject();
+                    for (Map.Entry<String, String> entry : resolvedServers.entrySet()) {
+                        resultJson.put(entry.getKey(), entry.getValue());
+                    }
+
+                    final String callbackResult = resultJson.toString();
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.onResult(callbackResult);
                         }
-
-                        // Phase 2: Load the token URL with Referer
-                        isSecondStage = true;
-                        Map<String, String> headers = new HashMap<>();
-                        headers.put("Referer", originalUrl);
-                        view.loadUrl(tokenUrl, headers);
                     });
-                } else {
-                    // PHASE 2: Extract server download links from the token page
-                    // Wait a moment for any dynamically rendered content
-                    mainHandler.postDelayed(() -> {
-                        extractServersDirectly(view, callback, completed, 0);
-                    }, 1500);
+
+                } catch (final Exception e) {
+                    e.printStackTrace();
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.onError("Extraction failed: " + e.getMessage());
+                        }
+                    });
                 }
             }
-        });
-
-        // Load the initial VCloud URL
-        hiddenWebView.loadUrl(vcloudUrl);
+        }).start();
     }
 
     /**
-     * Extract server links from the current page content with retry polling support.
+     * Perform the actual network requests and parsing.
      */
-    private void extractServersDirectly(WebView view, ExtractCallback callback, boolean[] completed, int retryCount) {
-        String extractServersJS =
-            "(function() {" +
-            "  try {" +
-            "    var servers = {};" +
-            "    var links = document.querySelectorAll('a[href]');" +
-            "    // CRITICAL: Must use UTC minutes to align with server validation times globally" +
-            "    var currentMinute = new Date().getUTCMinutes();" +
-            "    " +
-            "    var AD_KEYWORDS = ['bit.ly', 'tinyurl', 'cutt.ly', 'linkvertise', 'adf.ly', 'shorturl', 'doubleclick', 'popads', 'onclickads', 'exoclick', 'adsterra', 'adlink', 'winexch', 'lotus', 'bet', 'casino', '1xbet', 'mostbet', 'parimatch', 'melbet', 'dafanews', 'sportybet', 'betway', 'bet365', 'adsystem', 'adservices', 'googlesyndication', 'googleadservices'];" +
-            "    " +
-            "    var suffix1 = '1' + currentMinute;" +
-            "    var suffix2 = '_1' + currentMinute;" +
-            "    " +
-            "    for (var i = 0; i < links.length; i++) {" +
-            "      var a = links[i];" +
-            "      var href = a.getAttribute('href');" +
-            "      if (!href || href === '#' || href.startsWith('javascript:')) continue;" +
-            "      " +
-            "      var absoluteHref = a.href;" +
-            "      var hrefLower = absoluteHref.toLowerCase();" +
-            "      " +
-            "      // Filter non-media links" +
-            "      if (hrefLower.indexOf('css') !== -1 || hrefLower.indexOf('fonts') !== -1 || " +
-            "          hrefLower.indexOf('favicon') !== -1 || hrefLower.indexOf('manifest') !== -1 || " +
-            "          hrefLower.indexOf('telegram') !== -1 || hrefLower.indexOf('t.me') !== -1 || " +
-            "          hrefLower.indexOf('/tg/') !== -1 || hrefLower.indexOf('google.com') !== -1 ||" +
-            "          hrefLower.indexOf('github.com') !== -1 || hrefLower.indexOf('admin') !== -1 ||" +
-            "          hrefLower.indexOf('login') !== -1 || hrefLower.indexOf('signup') !== -1 ||" +
-            "          hrefLower.indexOf('hubcloud.php') !== -1) {" +
-            "        continue;" +
-            "      }" +
-            "      " +
-            "      // Filter ads" +
-            "      var isAd = false;" +
-            "      for (var k = 0; k < AD_KEYWORDS.length; k++) {" +
-            "        if (hrefLower.indexOf(AD_KEYWORDS[k]) !== -1) { isAd = true; break; }" +
-            "      }" +
-            "      if (isAd) continue;" +
-            "      " +
-            "      var id = (a.getAttribute('id') || '').trim();" +
-            "      var innerHtml = a.innerHTML || '';" +
-            "      " +
-            "      // Server 1 (FSL): appends '1' + currentMinute unless cloudflare storage links" +
-            "      if (id === 'fsl' || innerHtml.indexOf('[FSL Server]') !== -1) {" +
-            "        if (hrefLower.indexOf('x-amz-signature') !== -1 || hrefLower.indexOf('r2.cloudflarestorage') !== -1 || hrefLower.indexOf('r2.dev') !== -1) {" +
-            "          servers['Server 1'] = absoluteHref;" +
-            "        } else {" +
-            "          // Prevent double appending if already suffix matches" +
-            "          if (absoluteHref.endsWith(suffix1)) {" +
-            "            servers['Server 1'] = absoluteHref;" +
-            "          } else {" +
-            "            servers['Server 1'] = absoluteHref + suffix1;" +
-            "          }" +
-            "        }" +
-            "      }" +
-            "      // Server 2 (FSLv2): appends '_1' + currentMinute unless cloudflare storage links" +
-            "      else if (id === 's3' || innerHtml.indexOf('[FSLv2 Server]') !== -1) {" +
-            "        if (hrefLower.indexOf('x-amz-signature') !== -1 || hrefLower.indexOf('r2.cloudflarestorage') !== -1 || hrefLower.indexOf('r2.dev') !== -1) {" +
-            "          servers['Server 2'] = absoluteHref;" +
-            "        } else {" +
-            "          // Prevent double appending if already suffix matches" +
-            "          if (absoluteHref.endsWith(suffix2)) {" +
-            "            servers['Server 2'] = absoluteHref;" +
-            "          } else {" +
-            "            servers['Server 2'] = absoluteHref + suffix2;" +
-            "          }" +
-            "        }" +
-            "      }" +
-            "      // Server 3 (HubCloud)" +
-            "      else if (" +
-            "        innerHtml.indexOf('[Server : 10Gbps]') !== -1 || " +
-            "        hrefLower.indexOf('pixel.hubcloud') !== -1 || " +
-            "        hrefLower.indexOf('gpdl') !== -1 || " +
-            "        (hrefLower.indexOf('hubcloud') !== -1 && hrefLower.indexOf('id=') !== -1)" +
-            "      ) {" +
-            "        servers['Server 3'] = absoluteHref;" +
-            "      }" +
-            "    }" +
-            "    return JSON.stringify(servers);" +
-            "  } catch(e) { return JSON.stringify({error: e.message}); }" +
-            "})()";
+    private Map<String, String> performHttpExtraction(String vcloudUrl) throws Exception {
+        Map<String, String> resolved = new HashMap<>();
+        Map<String, String> headers = new HashMap<>();
+        String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+        headers.put("User-Agent", userAgent);
 
-        view.evaluateJavascript(extractServersJS, result -> {
-            if (completed[0]) return;
+        // Step 1: Fetch landing page HTML
+        String html = fetchHtml(vcloudUrl, headers);
 
-            if (result != null) {
-                // Remove surrounding quotes and unescape
-                result = result.replace("\\\"", "\"");
-                if (result.startsWith("\"") && result.endsWith("\"")) {
-                    result = result.substring(1, result.length() - 1);
-                }
-                // Unescape any remaining escape sequences
-                result = result.replace("\\\\", "\\")
-                               .replace("\\/", "/");
-            }
+        // Try to parse server links directly from landing page in case they are pre-generated
+        resolved = parseServerLinksFromHtml(html);
+        if (resolved.containsKey("Server 1") || resolved.containsKey("Server 2") || resolved.containsKey("Server 3")) {
+            return resolved;
+        }
 
-            if (result == null || result.equals("null") || result.equals("{}")) {
-                // Poll retry up to 6 times (3 seconds total) for async DOM updates
-                if (retryCount < 6) {
-                    mainHandler.postDelayed(() -> {
-                        extractServersDirectly(view, callback, completed, retryCount + 1);
-                    }, 500);
-                } else {
-                    completed[0] = true;
-                    callback.onError("No download server links found on page.");
-                    cleanup();
-                }
-            } else {
-                final String initialResult = result;
-                
-                // Trace redirects in background thread
-                new Thread(() -> {
-                    String finalResult = initialResult;
-                    try {
-                        JSONObject json = new JSONObject(initialResult);
-                        if (json.has("Server 3")) {
-                            String server3Url = json.getString("Server 3");
-                            String directUrl = traceHubCloudRedirect(server3Url);
-                            if (directUrl != null && !directUrl.isEmpty()) {
-                                json.put("Server 3", directUrl);
-                                finalResult = json.toString();
-                            }
+        // Step 2: Extract intermediate token URL
+        String tokenUrl = null;
+
+        // Try 3a: Extract from JS variable: var url = '...'
+        Pattern varUrlPattern = Pattern.compile("var\\s+url\\s*=\\s*['\"](https?://[^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+        Matcher varUrlMatcher = varUrlPattern.matcher(html);
+        if (varUrlMatcher.find()) {
+            tokenUrl = varUrlMatcher.group(1);
+        }
+
+        // Try 3b: Extract from anchor tag with id="download"
+        if (tokenUrl == null) {
+            Pattern aTagPattern = Pattern.compile("<a\\s+([^>]+)>(.*?)</a>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            Matcher aTagMatcher = aTagPattern.matcher(html);
+            Pattern hrefPattern = Pattern.compile("href\\s*=\\s*['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+            Pattern idPattern = Pattern.compile("id\\s*=\\s*['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+            while (aTagMatcher.find()) {
+                String attributes = aTagMatcher.group(1);
+                String innerText = aTagMatcher.group(2).toLowerCase();
+
+                String id = "";
+                Matcher idM = idPattern.matcher(attributes);
+                if (idM.find()) id = idM.group(1);
+
+                if (id.equals("download") || innerText.contains("generate direct download") || innerText.contains("generate download")) {
+                    Matcher hrefM = hrefPattern.matcher(attributes);
+                    if (hrefM.find()) {
+                        String href = hrefM.group(1);
+                        if (href.startsWith("http")) {
+                            tokenUrl = href;
+                            break;
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
                     }
-
-                    final String callbackResult = finalResult;
-                    mainHandler.post(() -> {
-                        if (!completed[0]) {
-                            completed[0] = true;
-                            callback.onResult(callbackResult);
-                            cleanup();
-                        }
-                    });
-                }).start();
+                }
             }
-        });
+        }
+
+        // Try 3c: Extract double atob
+        if (tokenUrl == null) {
+            Pattern atob2Pattern = Pattern.compile("atob\\(atob\\(['\"]([A-Za-z0-9+/=]+)['\"]\\)\\)", Pattern.CASE_INSENSITIVE);
+            Matcher atob2Matcher = atob2Pattern.matcher(html);
+            if (atob2Matcher.find()) {
+                try {
+                    byte[] d1 = android.util.Base64.decode(atob2Matcher.group(1), android.util.Base64.DEFAULT);
+                    byte[] d2 = android.util.Base64.decode(d1, android.util.Base64.DEFAULT);
+                    tokenUrl = new String(d2, "UTF-8");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        // Try 3d: Extract single atob
+        if (tokenUrl == null) {
+            Pattern atob1Pattern = Pattern.compile("url\\s*=\\s*atob\\(['\"]([A-Za-z0-9+/=]+)['\"]\\)", Pattern.CASE_INSENSITIVE);
+            Matcher atob1Matcher = atob1Pattern.matcher(html);
+            if (atob1Matcher.find()) {
+                try {
+                    byte[] d = android.util.Base64.decode(atob1Matcher.group(1), android.util.Base64.DEFAULT);
+                    tokenUrl = new String(d, "UTF-8");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        // Fallback relative URL in var url
+        if (tokenUrl == null) {
+            Pattern relUrlPattern = Pattern.compile("var\\s+url\\s*=\\s*['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+            Matcher relUrlMatcher = relUrlPattern.matcher(html);
+            if (relUrlMatcher.find()) {
+                String val = relUrlMatcher.group(1);
+                if (val.startsWith("http")) {
+                    tokenUrl = val;
+                } else {
+                    URL base = new URL(vcloudUrl);
+                    URL resolvedUrl = new URL(base, val);
+                    tokenUrl = resolvedUrl.toString();
+                }
+            }
+        }
+
+        if (tokenUrl == null) {
+            if (vcloudUrl.contains("token=")) {
+                tokenUrl = vcloudUrl;
+            } else {
+                throw new Exception("Could not find token URL or download button on page.");
+            }
+        }
+
+        // Step 3: Fetch token page with referer
+        headers.put("Referer", vcloudUrl);
+        String tokenHtml = fetchHtml(tokenUrl, headers);
+
+        // Step 4: Parse server links from token page HTML
+        return parseServerLinksFromHtml(tokenHtml);
+    }
+
+    /**
+     * Fetch HTML from a URL with custom headers.
+     */
+    private String fetchHtml(String targetUrl, Map<String, String> headers) throws Exception {
+        URL url = new URL(targetUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
+        conn.setInstanceFollowRedirects(true);
+        if (headers != null) {
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                conn.setRequestProperty(entry.getKey(), entry.getValue());
+            }
+        }
+        int status = conn.getResponseCode();
+        if (status != HttpURLConnection.HTTP_OK) {
+            throw new Exception("HTTP error code: " + status);
+        }
+        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+        StringBuilder response = new StringBuilder();
+        String inputLine;
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine).append("\n");
+        }
+        in.close();
+        conn.disconnect();
+        return response.toString();
+    }
+
+    /**
+     * Parse FSL, FSLv2, and HubCloud download links from page HTML.
+     */
+    private Map<String, String> parseServerLinksFromHtml(String html) {
+        Map<String, String> resolved = new HashMap<>();
+        Pattern aTagPattern = Pattern.compile("<a\\s+([^>]+)>(.*?)</a>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher aTagMatcher = aTagPattern.matcher(html);
+        Pattern hrefPattern = Pattern.compile("href\\s*=\\s*['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+        Pattern idPattern = Pattern.compile("id\\s*=\\s*['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+
+        String[] adKeywords = {
+            "bit.ly", "tinyurl", "cutt.ly", "linkvertise", "adf.ly", "shorturl",
+            "doubleclick", "popads", "onclickads", "exoclick", "adsterra", "adlink",
+            "winexch", "lotus", "bet", "casino", "1xbet", "mostbet", "parimatch",
+            "melbet", "dafanews", "sportybet", "betway", "bet365", "adsystem",
+            "adservices", "googlesyndication", "googleadservices"
+        };
+
+        // Align with server validation times globally via UTC minutes
+        java.util.Calendar cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+        int currentMinute = cal.get(java.util.Calendar.MINUTE);
+        String suffix1 = "1" + currentMinute;
+        String suffix2 = "_1" + currentMinute;
+
+        while (aTagMatcher.find()) {
+            String attributes = aTagMatcher.group(1);
+            String innerHtml = aTagMatcher.group(2);
+
+            Matcher hrefMatcher = hrefPattern.matcher(attributes);
+            if (!hrefMatcher.find()) continue;
+
+            String href = hrefMatcher.group(1);
+            if (href.equals("#") || href.isEmpty()) continue;
+
+            String hrefLower = href.toLowerCase();
+
+            // Filter non-media endpoints
+            if (hrefLower.contains("css") || hrefLower.contains("fonts") ||
+                hrefLower.contains("favicon") || hrefLower.contains("manifest") ||
+                hrefLower.contains("telegram") || hrefLower.contains("t.me") ||
+                hrefLower.contains("/tg/") || hrefLower.contains("google.com") ||
+                hrefLower.contains("github.com") || hrefLower.contains("admin") ||
+                hrefLower.contains("login") || hrefLower.contains("signup") ||
+                hrefLower.contains("hubcloud.php")) {
+                continue;
+            }
+
+            // Filter ads
+            boolean isAd = false;
+            for (String keyword : adKeywords) {
+                if (hrefLower.contains(keyword)) {
+                    isAd = true;
+                    break;
+                }
+            }
+            if (isAd) continue;
+
+            String id = "";
+            Matcher idMatcher = idPattern.matcher(attributes);
+            if (idMatcher.find()) {
+                id = idMatcher.group(1).trim();
+            }
+
+            // Server 1 (FSL): appends '1' + currentMinute unless cloudflare storage links
+            if (id.equals("fsl") || innerHtml.contains("[FSL Server]")) {
+                if (hrefLower.contains("x-amz-signature") || hrefLower.contains("r2.cloudflarestorage") || hrefLower.contains("r2.dev")) {
+                    resolved.put("Server 1", href);
+                } else {
+                    if (href.endsWith(suffix1)) {
+                        resolved.put("Server 1", href);
+                    } else {
+                        resolved.put("Server 1", href + suffix1);
+                    }
+                }
+            }
+            // Server 2 (FSLv2): appends '_1' + currentMinute unless cloudflare storage links
+            else if (id.equals("s3") || innerHtml.contains("[FSLv2 Server]")) {
+                if (hrefLower.contains("x-amz-signature") || hrefLower.contains("r2.cloudflarestorage") || hrefLower.contains("r2.dev")) {
+                    resolved.put("Server 2", href);
+                } else {
+                    if (href.endsWith(suffix2)) {
+                        resolved.put("Server 2", href);
+                    } else {
+                        resolved.put("Server 2", href + suffix2);
+                    }
+                }
+            }
+            // Server 3 (HubCloud)
+            else if (innerHtml.contains("[Server : 10Gbps]") ||
+                     hrefLower.contains("pixel.hubcloud") ||
+                     hrefLower.contains("gpdl") ||
+                     (hrefLower.contains("hubcloud") && hrefLower.contains("id="))) {
+                resolved.put("Server 3", href);
+            }
+        }
+        return resolved;
     }
 
     /**
@@ -346,7 +391,7 @@ public class VCloudExtractor {
                 conn.disconnect();
 
                 String bodyStr = body.toString();
-                
+
                 Pattern jsLocPattern = Pattern.compile("window\\.location\\s*=\\s*['\"](https?://[^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
                 Pattern jsLocHrefPattern = Pattern.compile("window\\.location\\.href\\s*=\\s*['\"](https?://[^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
                 Pattern metaRefreshPattern = Pattern.compile("<meta\\s+http-equiv=[\"']refresh[\"']\\s+content=[\"']\\d+;\\s*url=([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
@@ -403,35 +448,9 @@ public class VCloudExtractor {
     }
 
     /**
-     * Configure the hidden WebView for background extraction.
-     */
-    private void configureHiddenWebView(WebView webView) {
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT); // Default caching to bypass CloudflareTurnstile
-        settings.setLoadWithOverviewMode(true);
-        settings.setUseWideViewPort(true);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setMediaPlaybackRequiresUserGesture(true);
-        settings.setBlockNetworkImage(false); // Enable images — critical for Cloudflare challenge!
-        
-        // Use a desktop-like user agent to avoid mobile redirects
-        settings.setUserAgentString(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        );
-    }
-
-    /**
-     * Clean up the hidden WebView.
+     * Clean up. Now that WebView is gone, we don't have active resources to clean.
      */
     public void cleanup() {
-        if (hiddenWebView != null) {
-            hiddenWebView.stopLoading();
-            hiddenWebView.destroy();
-            hiddenWebView = null;
-        }
+        // No-op since we are using standard Java threads
     }
 }

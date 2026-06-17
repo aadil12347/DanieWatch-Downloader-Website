@@ -83,10 +83,21 @@ public class MainActivity extends Activity {
                 String urlLower = url.toLowerCase();
 
                 // 1. Intercept direct video download streams to bypass error page loads (404/403)
-                if (urlLower.contains("fastdl") || urlLower.contains("fsl.") || 
+                if (urlLower.contains("/api/stream") || 
+                    urlLower.contains("fastdl") || urlLower.contains("fsl.") || 
                     urlLower.contains("hubcloud") || urlLower.contains("gpdl") || 
                     urlLower.contains("r2.cloudflarestorage") || urlLower.contains("r2.dev")) {
-                    new DanieWatchBridge().startDownload(url, "DanieWatch Video");
+                    
+                    String downloadUrl = url;
+                    if (urlLower.contains("/api/stream")) {
+                        Uri uri = Uri.parse(url);
+                        String rawUrl = uri.getQueryParameter("url");
+                        if (rawUrl != null && !rawUrl.isEmpty()) {
+                            downloadUrl = rawUrl;
+                        }
+                    }
+                    
+                    new DanieWatchBridge().startDownload(downloadUrl, "DanieWatch Video");
                     return true; // Cancel navigation
                 }
                 
@@ -108,7 +119,8 @@ public class MainActivity extends Activity {
                 if (url.contains("daniewatch-downloader.vercel.app") || 
                     url.contains("localhost") || 
                     url.contains("127.0.0.1") || 
-                    url.contains("10.0.2.2")) {
+                    url.contains("10.0.2.2") ||
+                    url.contains("192.168.100.125")) {
                     return false; // Let WebView handle it
                 }
                 

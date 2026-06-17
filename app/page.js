@@ -284,7 +284,8 @@ export default function HomePage() {
   const openDetail = async (item) => {
     // If VCloud item and NOT in native app, show install modal instead of detail page
     const isGithubItemCheck = item.fromGithubCatalog || String(item.subjectId).startsWith('github_');
-    if (isGithubItemCheck && !isInNativeApp) {
+    const isNative = isInNativeApp || (typeof window !== 'undefined' && !!window.DanieWatchBridge);
+    if (isGithubItemCheck && !isNative) {
       setShowAppInstallModal(true);
       return;
     }
@@ -502,7 +503,8 @@ export default function HomePage() {
 
   const handleVcloudExtract = async (vcloudUrl, resolutionName) => {
     // If in native app, use the WebView bridge for extraction asynchronously to avoid WebView deadlock
-    if (isInNativeApp && window.DanieWatchBridge) {
+    const isNative = isInNativeApp || (typeof window !== 'undefined' && !!window.DanieWatchBridge);
+    if (isNative && window.DanieWatchBridge) {
       setVcloudExtractingRes(resolutionName);
       setVcloudError(null);
       setVcloudServers(null);
@@ -540,7 +542,8 @@ export default function HomePage() {
             }
           }
           if (selectedServerUrl) {
-            if (isInNativeApp && window.DanieWatchBridge && window.DanieWatchBridge.startDownload) {
+            const isNative = isInNativeApp || (typeof window !== 'undefined' && !!window.DanieWatchBridge);
+            if (isNative && window.DanieWatchBridge && window.DanieWatchBridge.startDownload) {
               window.DanieWatchBridge.startDownload(selectedServerUrl, selectedItem?.title || 'Video Download');
               showToast('Download queued in system!', 'success');
             } else {
