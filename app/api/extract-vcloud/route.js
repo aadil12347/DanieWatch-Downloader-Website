@@ -18,44 +18,15 @@ const AD_KEYWORDS = [
 
 export async function POST(req) {
   try {
-    const { url, step, tokenUrl: clientTokenUrl } = await req.json();
+    const { url } = await req.json();
 
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
       return NextResponse.json({ error: 'Valid VCloud URL is required' }, { status: 400 });
     }
 
-    // ─── STEP 2: Fetch Token Page & Resolve Final Links ───
-    if (step === 'token') {
-      if (!clientTokenUrl) {
-        return NextResponse.json({ error: 'tokenUrl is required for token step' }, { status: 400 });
-      }
-
-      console.log(`[VCloud Extractor] Step 2: Fetching token page: ${clientTokenUrl}`);
-      const tokenResponse = await fetchViaScriptProxy(clientTokenUrl, {
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Referer': url
-        },
-        // The token page download links (FSL, FSLv2, HubCloud) are in the raw HTML.
-        // We do not need a headless browser to render JavaScript.
-        timeoutMs: 25000             // 25s timeout (within Vercel 30s edge limit)
-      });
-
-      if (!tokenResponse.ok) {
-        return NextResponse.json({ error: `Failed to fetch token page. Status: ${tokenResponse.status}` }, { status: 502 });
-      }
-
-      const tokenHtml = await tokenResponse.text();
-      let servers = parseServerLinks(tokenHtml);
-
-      // Trace redirect chains (HubCloud / GPDL)
-      servers = await resolveRedirectsForServers(servers);
-
-      return NextResponse.json({ success: true, servers });
-    }
-
-    // ─── STEP 1: Fetch Base Landing Page ───
-    console.log(`[VCloud Extractor] Step 1: Extracting landing page: ${url}`);
+    console.log(`[VCloud Extractor] Extracting URL: ${url}`);
+    
+    // Step 1: Fetch Base Landing Page
     const landingPageResponse = await fetchViaScriptProxy(url, {
       headers: { 'User-Agent': USER_AGENT }
     });
@@ -66,14 +37,14 @@ export async function POST(req) {
 
     const html = await landingPageResponse.text();
 
-    // Check if links are already pre-generated directly on the landing page
+    // Step 2: Try parsing links directly (in case they are pre-generated)
     let servers = parseServerLinks(html);
     if (servers['Server 1'] || servers['Server 2'] || servers['Server 3']) {
       servers = await resolveRedirectsForServers(servers);
       return NextResponse.json({ success: true, servers });
     }
 
-    // Extract intermediate token URL
+    // Step 3: Extract intermediate token URL
     let tokenUrl = null;
 
     // Regex 3a: Extract from JS variable: var url = '...'
@@ -122,8 +93,27 @@ export async function POST(req) {
       }
     }
 
-    // Return the tokenUrl to the frontend so it can initiate Step 2
-    return NextResponse.json({ success: true, nextStep: 'token', tokenUrl });
+    // Step 4: Fetch Token Page (set Referer header)
+    const tokenResponse = await fetchViaScriptProxy(tokenUrl, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Referer': url
+      }
+    });
+
+    if (!tokenResponse.ok) {
+      return NextResponse.json({ error: `Failed to fetch token page. Status: ${tokenResponse.status}` }, { status: 502 });
+    }
+
+    const tokenHtml = await tokenResponse.text();
+
+    // Step 5: Parse Server Links & Apply Time Suffixes
+    servers = parseServerLinks(tokenHtml);
+
+    // Step 6: Trace redirect chains (HubCloud / GPDL)
+    servers = await resolveRedirectsForServers(servers);
+
+    return NextResponse.json({ success: true, servers });
 
   } catch (error) {
     console.error('[VCloud Extractor] API Error:', error);
@@ -220,7 +210,7 @@ async function traceHubCloudRedirect(initialUrl) {
       return urlObj.searchParams.get('link');
     }
 
-    const response = await fetch(currentUrl, {
+    const response = await fetchViaScriptProxy(currentUrl, {
       method: 'GET',
       redirect: 'manual',
       headers: { 'User-Agent': USER_AGENT }
