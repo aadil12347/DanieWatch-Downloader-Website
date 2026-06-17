@@ -4,48 +4,24 @@ import { fetchViaScraperProxy } from '../../../lib/proxy-fetch.js';
 export const runtime = 'edge';
 
 export async function GET(request) {
-  const testUrl = 'https://vcloud.zip/3699fyu95ym3ma6';
-
-  const debug = {
-    env: {
-      SCRAPINGANT_API_KEY_SET: !!process.env.SCRAPINGANT_API_KEY,
-      SCRAPE_DO_TOKEN_SET: !!process.env.SCRAPE_DO_TOKEN
-    },
-    url: testUrl
-  };
+  // We already know the token URL from Step 1 - skip the landing page entirely
+  const tokenUrl = 'https://vegamovies.mq/?q=ws01qrrwmczfrwf?token=dzRyZ3Npb2RKTlZEQjAwdzR6K3pkWGlSeGhmZGlVK24xNEJKT2YyNzF3Zz0=';
+  
+  const debug = { tokenUrl };
 
   try {
-    // Step 1: Fetch landing page
-    const landingRes = await fetchViaScraperProxy(testUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-    });
-    debug.landingStatus = landingRes.status;
-    const html = await landingRes.text();
-    debug.landingSize = html.length;
-
-    // Extract token URL
-    let tokenUrl = null;
-    const varUrlMatch = html.match(/var\s+url\s*=\s*['"](https?:\/\/[^'"]+)['"]/i);
-    if (varUrlMatch) tokenUrl = varUrlMatch[1];
-    debug.tokenUrl = tokenUrl;
-
-    if (!tokenUrl) {
-      return NextResponse.json({ success: false, error: 'No token URL found', debug });
-    }
-
-    // Step 2: Fetch token page
     const tokenRes = await fetchViaScraperProxy(tokenUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': testUrl
+        'Referer': 'https://vcloud.zip/3699fyu95ym3ma6'
       }
     });
     debug.tokenStatus = tokenRes.status;
     const tokenHtml = await tokenRes.text();
     debug.tokenSize = tokenHtml.length;
-    debug.tokenHtmlFull = tokenHtml.slice(0, 8000);
+    debug.tokenHtml = tokenHtml.slice(0, 8000);
 
-    // Extract ALL href links from the token page
+    // Extract ALL hrefs
     const allLinks = [];
     const hrefRegex = /href=["']([^"']+)["']/gi;
     let m;
@@ -54,7 +30,7 @@ export async function GET(request) {
     }
     debug.allHrefs = allLinks;
 
-    // Extract ALL anchor tags with their inner text
+    // Extract ALL anchor tags
     const allAnchors = [];
     const aTagRegex = /<a\s+([^>]+)>(.*?)<\/a>/gis;
     while ((m = aTagRegex.exec(tokenHtml)) !== null) {
