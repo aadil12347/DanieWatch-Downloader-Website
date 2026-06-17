@@ -2013,3 +2013,37 @@ html.lenis, html.lenis body {
     box-shadow: 0 4px 20px rgba(229, 9, 20, 0.5), 0 0 30px rgba(229, 9, 20, 0.2);
   }
 }
+
+/* ===== PREMIUM SERVER BADGE ===== */
+.premium-server-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  z-index: 2;
+  background: linear-gradient(135deg, #e50914 0%, #ff3b30 50%, #ff9500 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: badgePulse 2s ease-in-out infinite;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(229, 9, 20, 0.5);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 6px 16px rgba(229, 9, 20, 0.7), 0 0 8px rgba(255, 149, 0, 0.4);
+  }
+}
+

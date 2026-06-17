@@ -38,7 +38,7 @@ INJECTED from E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\An
 	android:supportsRtl
 		ADDED from E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:15:9-35
 	android:label
-		ADDED from E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:13:9-35
+		ADDED from E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:13:9-41
 	android:roundIcon
 		ADDED from E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\AndroidManifest.xml:14:9-54
 	android:icon

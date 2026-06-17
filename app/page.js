@@ -985,15 +985,30 @@ export default function HomePage() {
             <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 250">
               <text 
                 x="50%" 
-                y="55%" 
+                y="40%" 
                 dominantBaseline="middle" 
                 textAnchor="middle" 
-                fontSize="120" 
+                fontSize="100" 
                 fontWeight="900" 
                 letterSpacing="6"
               >
                 <tspan fill="none" stroke="#ffffff" strokeWidth="3.5" className="stroke-danie">DANIE</tspan>
                 <tspan fill="none" stroke="#e50914" strokeWidth="3.5" className="stroke-watch">WATCH</tspan>
+              </text>
+              <text 
+                x="50%" 
+                y="75%" 
+                dominantBaseline="middle" 
+                textAnchor="middle" 
+                fontSize="45" 
+                fontWeight="800" 
+                letterSpacing="10"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2"
+                opacity="0.8"
+              >
+                DOWNLOADER
               </text>
             </svg>
           </span>
@@ -1007,8 +1022,8 @@ export default function HomePage() {
       <header className="sticky-header">
         <div className="header-container">
           <a href="#" className="logo-link" onClick={handleLogoClick}>
-            <img src="/logo.png" alt="DanieWatch Logo" className="logo-img" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
-            <span>Danie<span className="logo-accent">Watch</span></span>
+            <img src="/logo.png" alt="DanieWatch Downloader Logo" className="logo-img" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+            <span>DanieWatch <span className="logo-accent">Downloader</span></span>
           </a>
 
           {/* Step indicators in Header */}
@@ -1066,7 +1081,7 @@ export default function HomePage() {
           <section className="hero-section">
             {/* Desktop Glass Chips */}
             <div className="glass-chip-wrapper desktop-only-chips">
-              <span className="glass-chip">DanieWatch</span>
+              <span className="glass-chip">DanieWatch Downloader</span>
               <span className="glass-chip">HD MP4</span>
               <span className="glass-chip">Subtitles</span>
             </div>
@@ -1089,7 +1104,7 @@ export default function HomePage() {
               </span>
             </div>
 
-            <h1 className="hero-title" data-splitting="true">DanieWatch Video Downloader</h1>
+            <h1 className="hero-title" data-splitting="true">DanieWatch Downloader</h1>
             <p className="hero-subtitle" data-splitting="true">
               Search movies, TV shows, and anime by title, then download HD MP4 videos with subtitle options.
             </p>
@@ -1218,19 +1233,29 @@ export default function HomePage() {
           {!loading && results.length > 0 && (
             <div className="results-grid-container">
               <div className="results-grid-layout">
-                {results.map((item) => (
-                  <div key={item.subjectId} className="media-card" onClick={() => openDetail(item)}>
-                    <div className="media-card-poster">
-                      {item.cover?.url && (
-                        <img
-                          src={imgProxy(item.cover.url, 300)}
-                          alt={item.title}
-                          loading="lazy"
-                        />
-                      )}
-                      <span className={`media-card-badge ${getBadgeClass(item.subjectType)}`}>
-                        {getType(item.subjectType)}
-                      </span>
+                {results.map((item) => {
+                  const isGithubItem = item.fromGithubCatalog || String(item.subjectId).startsWith('github_');
+                  return (
+                    <div key={item.subjectId} className="media-card" onClick={() => openDetail(item)}>
+                      <div className="media-card-poster">
+                        {item.cover?.url && (
+                          <img
+                            src={imgProxy(item.cover.url, 300)}
+                            alt={item.title}
+                            loading="lazy"
+                          />
+                        )}
+                        {isGithubItem && (
+                          <span className="premium-server-badge">
+                            Premium Server 🔥
+                          </span>
+                        )}
+                        <span 
+                          className={`media-card-badge ${getBadgeClass(item.subjectType)}`}
+                          style={isGithubItem ? { top: '38px' } : undefined}
+                        >
+                          {getType(item.subjectType)}
+                        </span>
                       {item.imdbRatingValue && (
                         <span className="media-card-rating">⭐ {item.imdbRatingValue}</span>
                       )}
@@ -1259,7 +1284,8 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
 
               {/* Infinite Scroll Sentinel element */}
@@ -1709,16 +1735,16 @@ export default function HomePage() {
         <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setShowAppInstallModal(false)}>
           <div className="app-install-modal" data-lenis-prevent>
             <button className="modal-exit-button" onClick={() => setShowAppInstallModal(false)}>✕</button>
-            <div className="app-install-modal-icon">⚡</div>
-            <h2 className="app-install-modal-title">Premium Download Servers</h2>
+            <div className="app-install-modal-icon">🔥</div>
+            <h2 className="app-install-modal-title">Premium Server</h2>
             <p className="app-install-modal-desc">
-              Install the DanieWatch app to unlock premium VCloud download servers with direct high-speed links.
+              Get the official DanieWatch Downloader app to access premium high-speed direct download servers.
             </p>
             <div className="app-install-modal-features">
-              <div className="app-install-feature"><span>✅</span> Direct download links — no redirects</div>
-              <div className="app-install-feature"><span>✅</span> Multiple servers (FSL, FSLv2, 10Gbps)</div>
+              <div className="app-install-feature"><span>✅</span> Direct high-speed download links</div>
+              <div className="app-install-feature"><span>✅</span> Choose from multiple download servers</div>
               <div className="app-install-feature"><span>✅</span> Resume support for large files</div>
-              <div className="app-install-feature"><span>✅</span> Cloudflare bypass — works every time</div>
+              <div className="app-install-feature"><span>✅</span> Standard Android download manager integration</div>
             </div>
             <button
               className="app-install-modal-btn"
@@ -1735,7 +1761,7 @@ export default function HomePage() {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Download DanieWatch App
+              Download DanieWatch Downloader App
             </button>
             <p className="app-install-modal-hint">Android 7.0+ required • Lightweight ~5MB</p>
           </div>

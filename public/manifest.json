@@ -1,6 +1,6 @@
 {
-  "name": "DanieWatch",
-  "short_name": "DanieWatch",
+  "name": "DanieWatch Downloader",
+  "short_name": "DanieWatch Downloader",
   "description": "DanieWatch Downloader — Movie & TV Search & Download",
   "start_url": "/",
   "display": "standalone",
