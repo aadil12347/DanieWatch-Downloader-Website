@@ -37,10 +37,11 @@ export async function POST(req) {
           'Referer': url
         },
         // Token page generates download links via JavaScript AJAX
-        // We need to wait for JS to execute and inject links into DOM
-        waitMs: 5000,                // Scrape.do: wait 5s after page load
-        waitForSelector: '#fsl',     // ScrapingAnt: wait for FSL download link
-        timeoutMs: 25000             // Allow 25s total (Cloudflare solve + JS wait)
+        // Use ScrapingAnt directly (skips slow Scrape.do super mode)
+        // ScrapingAnt browser mode handles JS rendering natively
+        useScrapingAntOnly: true,
+        waitForSelector: '#fsl',     // Wait for FSL download link to appear
+        timeoutMs: 25000             // 25s timeout (within Vercel 30s edge limit)
       });
 
       if (!tokenResponse.ok) {

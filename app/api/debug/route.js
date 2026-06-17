@@ -14,22 +14,19 @@ export async function GET(request) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://vcloud.zip/3699fyu95ym3ma6'
       },
-      waitMs: 5000,
+      useScrapingAntOnly: true,
       waitForSelector: '#fsl',
       timeoutMs: 25000
     });
     debug.tokenStatus = tokenRes.status;
     const tokenHtml = await tokenRes.text();
     debug.tokenSize = tokenHtml.length;
-
-    // Check for download keywords
     debug.hasFSL = tokenHtml.includes('fsl') || tokenHtml.includes('FSL');
     debug.hasHubcloud = tokenHtml.includes('hubcloud') || tokenHtml.includes('HubCloud');
     debug.has10Gbps = tokenHtml.includes('10Gbps');
-    debug.hasGpdl = tokenHtml.includes('gpdl');
 
-    // Extract ALL anchor tags
-    const allAnchors = [];
+    // Extract download-related anchors only
+    const anchors = [];
     const aTagRegex = /<a\s+([^>]+)>(.*?)<\/a>/gis;
     let m;
     while ((m = aTagRegex.exec(tokenHtml)) !== null) {
@@ -40,19 +37,13 @@ export async function GET(request) {
       if (hrefM && (
         hrefM[1].includes('hubcloud') || hrefM[1].includes('gpdl') ||
         hrefM[1].includes('pixel') || hrefM[1].includes('r2.dev') ||
-        hrefM[1].includes('cloudflarestorage') ||
         (idM && (idM[1] === 'fsl' || idM[1] === 's3')) ||
         inner.includes('FSL') || inner.includes('10Gbps') || inner.includes('Server')
       )) {
-        allAnchors.push({
-          href: hrefM[1].slice(0, 300),
-          id: idM ? idM[1] : null,
-          text: inner.slice(0, 200)
-        });
+        anchors.push({ href: hrefM[1].slice(0, 300), id: idM?.[1], text: inner.slice(0, 100) });
       }
     }
-    debug.downloadAnchors = allAnchors;
-    debug.htmlSnippet = tokenHtml.slice(0, 3000);
+    debug.downloadAnchors = anchors;
 
   } catch (error) {
     debug.error = error.message;
