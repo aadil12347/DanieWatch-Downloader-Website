@@ -563,14 +563,32 @@ export default function HomePage() {
     setVcloudButtonErrors(prev => ({ ...prev, [resolutionName]: null }));
 
     try {
-      const response = await fetch('/api/extract-vcloud', {
+      // Step 1: Fetch and parse landing page
+      let response = await fetch('/api/extract-vcloud', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: vcloudUrl })
       });
-      const data = await response.json();
-      if (!response.ok || !data.success || !data.servers) {
-        throw new Error(data.error || 'Failed to extract video links.');
+      let data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to extract landing page.');
+      }
+
+      // Step 2: Fetch and parse token page if required
+      if (data.nextStep === 'token') {
+        response = await fetch('/api/extract-vcloud', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: vcloudUrl, step: 'token', tokenUrl: data.tokenUrl })
+        });
+        data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to extract token page links.');
+        }
+      }
+
+      if (!data.servers) {
+        throw new Error('No download servers found.');
       }
       
       setVcloudServers(data.servers);
