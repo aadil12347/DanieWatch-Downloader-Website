@@ -35,7 +35,12 @@ export async function POST(req) {
         headers: {
           'User-Agent': USER_AGENT,
           'Referer': url
-        }
+        },
+        // Token page generates download links via JavaScript AJAX
+        // We need to wait for JS to execute and inject links into DOM
+        waitMs: 5000,                // Scrape.do: wait 5s after page load
+        waitForSelector: '#fsl',     // ScrapingAnt: wait for FSL download link
+        timeoutMs: 25000             // Allow 25s total (Cloudflare solve + JS wait)
       });
 
       if (!tokenResponse.ok) {
