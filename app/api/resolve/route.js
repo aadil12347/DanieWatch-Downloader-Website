@@ -117,12 +117,17 @@ export async function GET(request) {
     
     let isTv = false;
     let detailData = null;
+    let releaseYear = '';
     if (detailPath) {
       try {
         const detailResult = await fetchDetail(detailPath);
         detailData = detailResult?.data;
         const seasons = detailData?.resource?.seasons || [];
         isTv = seasons.length > 0 && seasons[0].se > 0;
+        const releaseDate = detailData?.subject?.releaseDate || '';
+        if (releaseDate && releaseDate.length >= 4) {
+          releaseYear = releaseDate.substring(0, 4);
+        }
       } catch (e) {
         console.error('Error pre-fetching detail:', e);
       }
@@ -146,7 +151,7 @@ export async function GET(request) {
     let downloads = (dlData?.downloads || []).map(dl => {
       const size = /^\d+$/.test(dl.size) ? formatSize(parseInt(dl.size)) : (dl.size || 'Unknown');
       const type = dl.type || 'stream';
-      const url = type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(dl.resolution || '720p')}&se=${se}&ep=${ep}`;
+      const url = type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(dl.resolution || '720p')}&se=${se}&ep=${ep}&year=${releaseYear}`;
       return {
         ...dl,
         url,
@@ -156,7 +161,7 @@ export async function GET(request) {
     });
     let captions = (dlData?.captions || []).map(cap => {
       const type = cap.type || 'stream';
-      const url = type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(cap.lanName || cap.lan || 'Subtitle')}&se=${se}&ep=${ep}`;
+      const url = type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(cap.lanName || cap.lan || 'Subtitle')}&se=${se}&ep=${ep}&year=${releaseYear}`;
       return {
         ...cap,
         url,
@@ -174,7 +179,7 @@ export async function GET(request) {
       for (const stream of streams) {
         if (stream.url) {
           downloads.push({
-            url: `/api/stream?url=${encodeURIComponent(stream.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(stream.definition || stream.resolution || 'SD')}&se=${se}&ep=${ep}`,
+            url: `/api/stream?url=${encodeURIComponent(stream.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(stream.definition || stream.resolution || 'SD')}&se=${se}&ep=${ep}&year=${releaseYear}`,
             resolution: stream.definition || stream.resolution || 'SD',
             format: 'mp4',
             size: stream.size ? formatSize(stream.size) : 'Stream',
@@ -187,7 +192,7 @@ export async function GET(request) {
       for (const d of dash) {
         if (d.url) {
           downloads.push({
-            url: `/api/stream?url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(d.definition || d.resolution || 'HD')}&se=${se}&ep=${ep}`,
+            url: `/api/stream?url=${encodeURIComponent(d.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(d.definition || d.resolution || 'HD')}&se=${se}&ep=${ep}&year=${releaseYear}`,
             resolution: d.definition || d.resolution || 'HD',
             format: 'dash',
             size: d.size ? formatSize(d.size) : 'Adaptive',
@@ -200,7 +205,7 @@ export async function GET(request) {
       for (const h of hls) {
         if (h.url) {
           downloads.push({
-            url: `/api/stream?url=${encodeURIComponent(h.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(h.definition || h.resolution || 'HD')}&se=${se}&ep=${ep}`,
+            url: `/api/stream?url=${encodeURIComponent(h.url)}&title=${encodeURIComponent(officialTitle)}&res=${encodeURIComponent(h.definition || h.resolution || 'HD')}&se=${se}&ep=${ep}&year=${releaseYear}`,
             resolution: h.definition || h.resolution || 'HD',
             format: 'hls',
             size: h.size ? formatSize(h.size) : 'Adaptive',

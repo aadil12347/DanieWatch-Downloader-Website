@@ -556,7 +556,8 @@ export default function HomePage() {
             const isNative = isInNativeApp || (typeof window !== 'undefined' && !!window.DanieWatchBridge);
             const itemTitle = selectedItem?.title || 'Video Download';
             const lang = detectLanguage(itemTitle);
-            const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(itemTitle)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}&lang=${encodeURIComponent(lang)}`;
+            const releaseYear = detail?.subject?.releaseDate ? detail.subject.releaseDate.substring(0, 4) : (selectedItem?.releaseDate ? selectedItem.releaseDate.substring(0, 4) : '');
+            const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(itemTitle)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}&lang=${encodeURIComponent(lang)}&year=${releaseYear}`;
             
             if (isNative && window.DanieWatchBridge && window.DanieWatchBridge.startDownload) {
               window.DanieWatchBridge.startDownload(dlUrl, itemTitle);
@@ -632,7 +633,8 @@ export default function HomePage() {
       if (selectedServerUrl) {
         const itemTitle = selectedItem.title;
         const lang = detectLanguage(itemTitle);
-        const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(itemTitle)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}&lang=${encodeURIComponent(lang)}`;
+        const releaseYear = detail?.subject?.releaseDate ? detail.subject.releaseDate.substring(0, 4) : (selectedItem?.releaseDate ? selectedItem.releaseDate.substring(0, 4) : '');
+        const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(itemTitle)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}&lang=${encodeURIComponent(lang)}&year=${releaseYear}`;
         triggerDownload(dlUrl, itemTitle);
       } else {
         throw new Error('No download server links returned.');
@@ -1621,7 +1623,8 @@ export default function HomePage() {
                                   }
                                   const itemTitle = detail?.subject?.title || selectedItem.title;
                                   const lang = detectLanguage(itemTitle);
-                                  const dlUrl = dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(itemTitle)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}&lang=${encodeURIComponent(lang)}`;
+                                  const releaseYear = detail?.subject?.releaseDate ? detail.subject.releaseDate.substring(0, 4) : (selectedItem?.releaseDate ? selectedItem.releaseDate.substring(0, 4) : '');
+                                  const dlUrl = dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(itemTitle)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}&lang=${encodeURIComponent(lang)}&year=${releaseYear}`;
                                   return (
                                     <a
                                       key={i}
@@ -1686,7 +1689,8 @@ export default function HomePage() {
                                   {downloads.captions.map((cap, i) => {
                                     const itemTitle = detail?.subject?.title || selectedItem.title;
                                     const lang = detectLanguage(itemTitle);
-                                    const capUrl = cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(itemTitle)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}&lang=${encodeURIComponent(lang)}`;
+                                    const releaseYear = detail?.subject?.releaseDate ? detail.subject.releaseDate.substring(0, 4) : (selectedItem?.releaseDate ? selectedItem.releaseDate.substring(0, 4) : '');
+                                    const capUrl = cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(itemTitle)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}&lang=${encodeURIComponent(lang)}&year=${releaseYear}`;
                                     return (
                                       <a
                                         key={i}

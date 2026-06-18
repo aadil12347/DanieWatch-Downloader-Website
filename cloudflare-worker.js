@@ -106,7 +106,21 @@ async function handleRequest(request) {
       let parts = [];
       parts.push(cleanTitle);
       
-      if (se && se !== '0') {
+      const isMovie = !se || se === '0';
+      if (isMovie) {
+        const yearParam = urlObj.searchParams.get('year');
+        let movieYear = yearParam;
+        if (!movieYear) {
+          // Fallback: extract 4-digit year from original title
+          const yearMatch = title.match(/\b(19\d\d|20\d\d)\b/);
+          if (yearMatch) {
+            movieYear = yearMatch[1];
+          }
+        }
+        if (movieYear && !cleanTitle.includes(movieYear)) {
+          parts.push(movieYear);
+        }
+      } else {
         const sStr = `S${String(se).padStart(2, '0')}`;
         const eStr = `E${String(ep || 1).padStart(2, '0')}`;
         parts.push(`${sStr} ${eStr}`);
