@@ -1,0 +1,8 @@
+com.daniewatch.app-pngs-0 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\build\generated\res\pngs\release
+com.daniewatch.app-resValues-1 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\build\generated\res\resValues\release
+com.daniewatch.app-packageReleaseResources-2 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\build\intermediates\incremental\release\packageReleaseResources\merged.dir
+com.daniewatch.app-packageReleaseResources-3 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\build\intermediates\incremental\release\packageReleaseResources\stripped.dir
+com.daniewatch.app-merged-not-compiled-resources-4 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\build\intermediates\merged-not-compiled-resources\release
+com.daniewatch.app-release-5 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\build\intermediates\merged_res\release\mergeReleaseResources
+com.daniewatch.app-main-6 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\main\res
+com.daniewatch.app-release-7 E:\0.1 Github Repo\Vcoud Databse Links\android-app\app\src\release\res

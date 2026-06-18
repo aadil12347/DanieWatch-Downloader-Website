@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- "DW" text centered in adaptive icon safe zone -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,46.5L33,61.5L38.5,61.5C42.9,61.5 46,58.5 46,54C46,49.5 42.9,46.5 38.5,46.5L33,46.5ZM36,49.2L38.2,49.2C41,49.2 43,51.1 43,54C43,56.9 41,58.8 38.2,58.8L36,58.8L36,49.2Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M49,46.5L52,46.5L56,57.5L60,46.5L63,46.5L64.5,61.5L61.5,61.5L60.7,51.5L57,61.5L55,61.5L51.3,51.5L50.5,61.5L47.5,61.5L49,46.5Z"/>
+</vector>

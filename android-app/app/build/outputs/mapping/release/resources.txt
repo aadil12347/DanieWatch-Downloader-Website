@@ -1,0 +1,90 @@
+android.content.res.Resources#getIdentifier present: false
+Web content present: true
+Referenced Strings:
+dafanews
+css
+1xbet
+s3
+google.com
+1
+exoclick
+onclickads
+winexch
+go/
+10.0.2.2
+linkvertise
+adsterra
+r2.dev
+1.0.0
+fastdl
+bet
+github.com
+/api/stream
+http
+r2.cloudflarestorage
+127.0.0.1
+admin
+sportybet
+shorturl
+Referer
+DanieWatchBridge
+android.intent.action.VIEW
+parimatch
+bet365
+fsl.
+Location
+gpdl
+googlesyndication
+signup
+bonuscaf.com
+bit.ly
+GET
+fsl
+adservices
+login
+adsystem
+t.me
+UTC
+lotus
+casino
+adf.ly
+download
+/tg/
+doubleclick
+localhost
+adlink
+tinyurl
+_1
+hubcloud.php
+betway
+cutt.ly
+link
+popads
+192.168.100.125
+/$
+mostbet
+fonts
+googleadservices
+favicon
+manifest
+telegram
+pixel.hubcloud
+hubcloud
+melbet
+@color/ic_launcher_background : reachable=false
+@drawable/ic_launcher_foreground : reachable=false
+@mipmap/ic_launcher : reachable=true
+@mipmap/ic_launcher_round : reachable=true
+@string/app_name : reachable=true
+@style/Theme_DanieWatch : reachable=true
+@xml/network_security_config : reachable=true
+
+The root reachable resources are:
+ mipmap:ic_launcher:2130903040
+ mipmap:ic_launcher_round:2130903041
+ string:app_name:2130968576
+ style:Theme_DanieWatch:2131034112
+ xml:network_security_config:2131099648
+Unused resources are: 
+ color:ic_launcher_background:2130771968
+ drawable:ic_launcher_foreground:2130837504

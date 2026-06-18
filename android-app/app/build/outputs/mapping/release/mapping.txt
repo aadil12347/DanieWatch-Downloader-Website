@@ -1,0 +1,326 @@
+# compiler: R8
+# compiler_version: 8.7.18
+# min_api: 24
+# common_typos_disable
+# {"id":"com.android.tools.r8.mapping","version":"2.2"}
+# pg_map_id: da4fb80
+# pg_map_hash: SHA-256 da4fb80c088cd165e45592dca41cd9e2a39762133cd9cff3fa27479e8e7d52d7
+com.daniewatch.app.MainActivity -> com.daniewatch.app.MainActivity:
+# {"id":"sourceFile","fileName":"MainActivity.java"}
+    android.webkit.WebView mainWebView -> a
+    com.daniewatch.app.VCloudExtractor vcloudExtractor -> b
+      # {"id":"com.android.tools.r8.residualsignature","signature":"La/l;"}
+    1:4:void <init>():40:40 -> <init>
+    1:10:void onBackPressed():302:302 -> onBackPressed
+    11:16:void onBackPressed():303:303 -> onBackPressed
+    17:20:void onBackPressed():305:305 -> onBackPressed
+    1:1:void onCreate(android.os.Bundle):49:49 -> onCreate
+    2:7:void onCreate(android.os.Bundle):52:57 -> onCreate
+    8:9:void onCreate(android.os.Bundle):62:63 -> onCreate
+    10:10:void onCreate(android.os.Bundle):66:66 -> onCreate
+    11:23:void configureWebView(android.webkit.WebView):176:188 -> onCreate
+    11:23:void onCreate(android.os.Bundle):67 -> onCreate
+    24:25:void configureWebView(android.webkit.WebView):191:192 -> onCreate
+    24:25:void onCreate(android.os.Bundle):67 -> onCreate
+    26:28:void onCreate(android.os.Bundle):70:72 -> onCreate
+    29:29:void onCreate(android.os.Bundle):75:75 -> onCreate
+    30:31:void com.daniewatch.app.VCloudExtractor.<init>():41:42 -> onCreate
+    30:31:void onCreate(android.os.Bundle):75 -> onCreate
+    32:32:void onCreate(android.os.Bundle):75:75 -> onCreate
+    33:33:void onCreate(android.os.Bundle):78:78 -> onCreate
+    34:34:void onCreate(android.os.Bundle):81:81 -> onCreate
+    35:35:void onCreate(android.os.Bundle):153:153 -> onCreate
+    36:36:void onCreate(android.os.Bundle):156:156 -> onCreate
+    37:37:void onCreate(android.os.Bundle):164:164 -> onCreate
+    38:39:void onCreate(android.os.Bundle):168:169 -> onCreate
+    1:4:void onDestroy():311:311 -> onDestroy
+    5:7:void onDestroy():312:312 -> onDestroy
+    8:11:void onDestroy():314:314 -> onDestroy
+    12:14:void onDestroy():315:315 -> onDestroy
+    15:18:void onDestroy():317:317 -> onDestroy
+com.daniewatch.app.MainActivity$$ExternalSyntheticApiModelOutline0 -> a.a:
+# {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
+# {"id":"com.android.tools.r8.synthesized"}
+    1:1:void a.MainActivity$$ExternalSyntheticApiModelOutline0.m(android.view.WindowManager$LayoutParams):0:0 -> a
+      # {"id":"com.android.tools.r8.synthesized"}
+com.daniewatch.app.MainActivity$1 -> a.b:
+# {"id":"sourceFile","fileName":"MainActivity.java"}
+    com.daniewatch.app.MainActivity this$0 -> a
+    1:6:void <init>(com.daniewatch.app.MainActivity):81:81 -> <init>
+    1:3:void onPageFinished(android.webkit.WebView,java.lang.String):143:143 -> onPageFinished
+    4:10:void onPageFinished(android.webkit.WebView,java.lang.String):145:145 -> onPageFinished
+    1:4:void onPageStarted(android.webkit.WebView,java.lang.String,android.graphics.Bitmap):138:138 -> onPageStarted
+    1:2:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):84:85 -> shouldOverrideUrlLoading
+    3:6:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):88:91 -> shouldOverrideUrlLoading
+    7:7:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):105:105 -> shouldOverrideUrlLoading
+    8:10:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):107:109 -> shouldOverrideUrlLoading
+    11:15:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):118:122 -> shouldOverrideUrlLoading
+    16:17:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):128:129 -> shouldOverrideUrlLoading
+    18:19:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):94:95 -> shouldOverrideUrlLoading
+    20:21:boolean shouldOverrideUrlLoading(android.webkit.WebView,android.webkit.WebResourceRequest):97:98 -> shouldOverrideUrlLoading
+com.daniewatch.app.MainActivity$2 -> a.c:
+# {"id":"sourceFile","fileName":"MainActivity.java"}
+    com.daniewatch.app.MainActivity this$0 -> a
+    1:6:void <init>(com.daniewatch.app.MainActivity):156:156 -> <init>
+    1:1:void onDownloadStart(java.lang.String,java.lang.String,java.lang.String,java.lang.String,long):160:160 -> onDownloadStart
+com.daniewatch.app.MainActivity$DanieWatchBridge -> a.h:
+# {"id":"sourceFile","fileName":"MainActivity.java"}
+    com.daniewatch.app.MainActivity this$0 -> a
+    1:6:void <init>(com.daniewatch.app.MainActivity):199:199 -> <init>
+    1:2:java.lang.String extractVCloud(java.lang.String):204:205 -> extractVCloud
+    3:3:java.lang.String extractVCloud(java.lang.String):207:207 -> extractVCloud
+    4:4:java.lang.String extractVCloud(java.lang.String):228:228 -> extractVCloud
+    5:5:java.lang.String extractVCloud(java.lang.String):230:230 -> extractVCloud
+    6:6:java.lang.String extractVCloud(java.lang.String):234:234 -> extractVCloud
+    7:7:java.lang.String extractVCloud(java.lang.String):236:236 -> extractVCloud
+    8:8:java.lang.String extractVCloud(java.lang.String):232:232 -> extractVCloud
+    9:9:java.lang.String extractVCloud(java.lang.String):234:234 -> extractVCloud
+    1:18:void extractVCloudAsync(java.lang.String,java.lang.String):241:241 -> extractVCloudAsync
+    1:15:java.lang.String getAppVersion():292:292 -> getAppVersion
+    16:18:java.lang.String getAppVersion():293:293 -> getAppVersion
+    19:21:java.lang.String getAppVersion():295:295 -> getAppVersion
+    1:2:boolean isNativeApp():286:286 -> isNativeApp
+    1:18:void startDownload(java.lang.String,java.lang.String):269:269 -> startDownload
+com.daniewatch.app.MainActivity$DanieWatchBridge$$ExternalSyntheticLambda0 -> a.d:
+# {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
+# {"id":"com.android.tools.r8.synthesized"}
+    com.daniewatch.app.MainActivity$DanieWatchBridge com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$552958c441ffae80bb3f561b571cb3aec9aa64b2bb7c75155d8e11ce704e1d55$0.f$0 -> a
+      # {"id":"com.android.tools.r8.residualsignature","signature":"La/h;"}
+      # {"id":"com.android.tools.r8.synthesized"}
+    java.lang.String com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$552958c441ffae80bb3f561b571cb3aec9aa64b2bb7c75155d8e11ce704e1d55$0.f$1 -> b
+      # {"id":"com.android.tools.r8.synthesized"}
+    1:1:void a.MainActivity$DanieWatchBridge$$ExternalSyntheticLambda0.<init>(a.MainActivity$DanieWatchBridge,java.lang.String):0:0 -> <init>
+      # {"id":"com.android.tools.r8.synthesized"}
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/h;Ljava/lang/String;)V"}
+    1:16:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$startDownload$2(java.lang.String):272:272 -> run
+      # {"id":"com.android.tools.r8.residualsignature","signature":"()V"}
+    17:41:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$startDownload$2(java.lang.String):273:273 -> run
+    42:52:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$startDownload$2(java.lang.String):275:275 -> run
+    53:56:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$startDownload$2(java.lang.String):276:276 -> run
+    57:63:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$startDownload$2(java.lang.String):278:278 -> run
+    64:67:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$startDownload$2(java.lang.String):279:279 -> run
+com.daniewatch.app.MainActivity$DanieWatchBridge$$ExternalSyntheticLambda1 -> a.e:
+# {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
+# {"id":"com.android.tools.r8.synthesized"}
+    com.daniewatch.app.MainActivity$DanieWatchBridge com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$5c6983d564316a62a50cbb63c298443d5c9db4ba93e141efdc3f677412b2fb99$0.f$0 -> a
+      # {"id":"com.android.tools.r8.residualsignature","signature":"La/h;"}
+      # {"id":"com.android.tools.r8.synthesized"}
+    java.lang.String com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$5c6983d564316a62a50cbb63c298443d5c9db4ba93e141efdc3f677412b2fb99$0.f$1 -> b
+      # {"id":"com.android.tools.r8.synthesized"}
+    java.lang.Object com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$5c6983d564316a62a50cbb63c298443d5c9db4ba93e141efdc3f677412b2fb99$0.f$2 -> c
+      # {"id":"com.android.tools.r8.synthesized"}
+    java.lang.String[] com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$5c6983d564316a62a50cbb63c298443d5c9db4ba93e141efdc3f677412b2fb99$0.f$3 -> d
+      # {"id":"com.android.tools.r8.synthesized"}
+    1:1:void a.MainActivity$DanieWatchBridge$$ExternalSyntheticLambda1.<init>(a.MainActivity$DanieWatchBridge,java.lang.String,java.lang.Object,java.lang.String[]):0:0 -> <init>
+      # {"id":"com.android.tools.r8.synthesized"}
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/h;Ljava/lang/String;Ljava/lang/Object;[Ljava/lang/String;)V"}
+    1:6:com.daniewatch.app.VCloudExtractor com.daniewatch.app.MainActivity.access$100(com.daniewatch.app.MainActivity):40:40 -> run
+    1:6:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloud$0(java.lang.String,java.lang.Object,java.lang.String[]):208 -> run
+      # {"id":"com.android.tools.r8.residualsignature","signature":"()V"}
+    7:18:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloud$0(java.lang.String,java.lang.Object,java.lang.String[]):208:208 -> run
+    19:30:void com.daniewatch.app.VCloudExtractor.extract(android.content.Context,java.lang.String,com.daniewatch.app.VCloudExtractor$ExtractCallback):50:50 -> run
+    19:30:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloud$0(java.lang.String,java.lang.Object,java.lang.String[]):208 -> run
+    31:34:void com.daniewatch.app.VCloudExtractor.extract(android.content.Context,java.lang.String,com.daniewatch.app.VCloudExtractor$ExtractCallback):97:97 -> run
+    31:34:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloud$0(java.lang.String,java.lang.Object,java.lang.String[]):208 -> run
+com.daniewatch.app.MainActivity$DanieWatchBridge$$ExternalSyntheticLambda2 -> a.f:
+# {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
+# {"id":"com.android.tools.r8.synthesized"}
+    com.daniewatch.app.MainActivity$DanieWatchBridge com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$ef38aae8419ed3ed0c1b57a510a6d48fd6f8f1f67a8db3abd65270473c985481$0.f$0 -> a
+      # {"id":"com.android.tools.r8.residualsignature","signature":"La/h;"}
+      # {"id":"com.android.tools.r8.synthesized"}
+    java.lang.String com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$ef38aae8419ed3ed0c1b57a510a6d48fd6f8f1f67a8db3abd65270473c985481$0.f$1 -> b
+      # {"id":"com.android.tools.r8.synthesized"}
+    java.lang.String com.daniewatch.app.MainActivity$DanieWatchBridge$$InternalSyntheticLambda$2$ef38aae8419ed3ed0c1b57a510a6d48fd6f8f1f67a8db3abd65270473c985481$0.f$2 -> c
+      # {"id":"com.android.tools.r8.synthesized"}
+    1:1:void a.MainActivity$DanieWatchBridge$$ExternalSyntheticLambda2.<init>(a.MainActivity$DanieWatchBridge,java.lang.String,java.lang.String):0:0 -> <init>
+      # {"id":"com.android.tools.r8.synthesized"}
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/h;Ljava/lang/String;Ljava/lang/String;)V"}
+    1:6:com.daniewatch.app.VCloudExtractor com.daniewatch.app.MainActivity.access$100(com.daniewatch.app.MainActivity):40:40 -> run
+    1:6:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloudAsync$1(java.lang.String,java.lang.String):242 -> run
+      # {"id":"com.android.tools.r8.residualsignature","signature":"()V"}
+    7:16:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloudAsync$1(java.lang.String,java.lang.String):242:242 -> run
+    17:28:void com.daniewatch.app.VCloudExtractor.extract(android.content.Context,java.lang.String,com.daniewatch.app.VCloudExtractor$ExtractCallback):50:50 -> run
+    17:28:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloudAsync$1(java.lang.String,java.lang.String):242 -> run
+    29:32:void com.daniewatch.app.VCloudExtractor.extract(android.content.Context,java.lang.String,com.daniewatch.app.VCloudExtractor$ExtractCallback):97:97 -> run
+    29:32:void com.daniewatch.app.MainActivity$DanieWatchBridge.lambda$extractVCloudAsync$1(java.lang.String,java.lang.String):242 -> run
+com.daniewatch.app.MainActivity$DanieWatchBridge$1 -> a.g:
+# {"id":"sourceFile","fileName":"MainActivity.java"}
+    int a.MainActivity$DanieWatchBridge$1.$r8$classId -> a
+      # {"id":"com.android.tools.r8.synthesized"}
+    java.lang.Object val$lock -> b
+    java.lang.String[] val$result -> c
+      # {"id":"com.android.tools.r8.residualsignature","signature":"Ljava/lang/Object;"}
+    1:1:void <init>(com.daniewatch.app.MainActivity$DanieWatchBridge,java.lang.Object,java.lang.String[]):209:209 -> <init>
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(Ljava/lang/Object;[Ljava/lang/String;)V"}
+    2:2:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.<init>(com.daniewatch.app.MainActivity$DanieWatchBridge,java.lang.String):243:243 -> <init>
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/h;Ljava/lang/String;)V"}
+    1:2:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onError(java.lang.String):256:257 -> onError
+    3:3:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onError(java.lang.String):261:261 -> onError
+    4:4:android.webkit.WebView com.daniewatch.app.MainActivity.access$000(com.daniewatch.app.MainActivity):40:40 -> onError
+    4:4:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onError(java.lang.String):261 -> onError
+    5:5:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onError(java.lang.String):261:261 -> onError
+    6:9:void onError(java.lang.String):220:223 -> onError
+    1:2:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onResult(java.lang.String):246:247 -> onResult
+    3:3:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onResult(java.lang.String):251:251 -> onResult
+    4:4:android.webkit.WebView com.daniewatch.app.MainActivity.access$000(com.daniewatch.app.MainActivity):40:40 -> onResult
+    4:4:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onResult(java.lang.String):251 -> onResult
+    5:5:void com.daniewatch.app.MainActivity$DanieWatchBridge$2.onResult(java.lang.String):251:251 -> onResult
+    6:9:void onResult(java.lang.String):212:215 -> onResult
+com.daniewatch.app.VCloudExtractor -> a.l:
+# {"id":"sourceFile","fileName":"VCloudExtractor.java"}
+    android.os.Handler mainHandler -> a
+    1:1:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32:32 -> a
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/l;Ljava/lang/String;)Ljava/util/HashMap;"}
+    2:5:java.util.Map performHttpExtraction(java.lang.String):104:107 -> a
+    2:5:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    6:6:java.util.Map performHttpExtraction(java.lang.String):110:110 -> a
+    6:6:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    7:8:java.util.Map performHttpExtraction(java.lang.String):113:114 -> a
+    7:8:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    9:12:java.util.Map performHttpExtraction(java.lang.String):122:125 -> a
+    9:12:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    13:20:java.util.Map performHttpExtraction(java.lang.String):129:136 -> a
+    13:20:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    21:22:java.util.Map performHttpExtraction(java.lang.String):139:140 -> a
+    21:22:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    23:27:java.util.Map performHttpExtraction(java.lang.String):142:146 -> a
+    23:27:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    28:31:java.util.Map performHttpExtraction(java.lang.String):156:159 -> a
+    28:31:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    32:34:java.util.Map performHttpExtraction(java.lang.String):161:163 -> a
+    32:34:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    35:35:java.util.Map performHttpExtraction(java.lang.String):165:165 -> a
+    35:35:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    36:38:java.util.Map performHttpExtraction(java.lang.String):172:174 -> a
+    36:38:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    39:40:java.util.Map performHttpExtraction(java.lang.String):176:177 -> a
+    39:40:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    41:41:java.util.Map performHttpExtraction(java.lang.String):179:179 -> a
+    41:41:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    42:46:java.util.Map performHttpExtraction(java.lang.String):186:190 -> a
+    42:46:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    47:49:java.util.Map performHttpExtraction(java.lang.String):193:195 -> a
+    47:49:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    50:50:java.util.Map performHttpExtraction(java.lang.String):201:201 -> a
+    50:50:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    51:51:java.util.Map performHttpExtraction(java.lang.String):204:204 -> a
+    51:51:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    52:53:java.util.Map performHttpExtraction(java.lang.String):209:210 -> a
+    52:53:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    54:54:java.util.Map performHttpExtraction(java.lang.String):213:213 -> a
+    54:54:java.util.Map access$000(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> a
+    1:1:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32:32 -> b
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/l;Ljava/lang/String;)Ljava/lang/String;"}
+    2:2:java.lang.String traceHubCloudRedirect(java.lang.String):350:350 -> b
+    2:2:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    3:3:java.lang.String traceHubCloudRedirect(java.lang.String):352:352 -> b
+    3:3:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    4:6:java.lang.String traceHubCloudRedirect(java.lang.String):354:356 -> b
+    4:6:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    7:13:java.lang.String traceHubCloudRedirect(java.lang.String):360:366 -> b
+    7:13:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    14:16:java.lang.String traceHubCloudRedirect(java.lang.String):368:370 -> b
+    14:16:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    17:19:java.lang.String traceHubCloudRedirect(java.lang.String):372:374 -> b
+    17:19:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    20:20:java.lang.String traceHubCloudRedirect(java.lang.String):378:378 -> b
+    20:20:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    21:22:java.lang.String traceHubCloudRedirect(java.lang.String):384:385 -> b
+    21:22:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    23:24:java.lang.String traceHubCloudRedirect(java.lang.String):387:388 -> b
+    23:24:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    25:26:java.lang.String traceHubCloudRedirect(java.lang.String):390:391 -> b
+    25:26:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    27:27:java.lang.String traceHubCloudRedirect(java.lang.String):393:393 -> b
+    27:27:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    28:30:java.lang.String traceHubCloudRedirect(java.lang.String):395:397 -> b
+    28:30:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    31:33:java.lang.String traceHubCloudRedirect(java.lang.String):399:401 -> b
+    31:33:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    34:36:java.lang.String traceHubCloudRedirect(java.lang.String):404:406 -> b
+    34:36:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    37:39:java.lang.String traceHubCloudRedirect(java.lang.String):410:412 -> b
+    37:39:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    40:41:java.lang.String traceHubCloudRedirect(java.lang.String):416:417 -> b
+    40:41:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    42:44:java.lang.String traceHubCloudRedirect(java.lang.String):421:423 -> b
+    42:44:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    45:45:java.lang.String traceHubCloudRedirect(java.lang.String):432:432 -> b
+    45:45:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    46:48:java.lang.String traceHubCloudRedirect(java.lang.String):438:440 -> b
+    46:48:java.lang.String access$200(com.daniewatch.app.VCloudExtractor,java.lang.String):32 -> b
+    1:6:java.lang.String fetchHtml(java.lang.String,java.util.Map):220:225 -> c
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(Ljava/lang/String;Ljava/util/HashMap;)Ljava/lang/String;"}
+    7:8:java.lang.String fetchHtml(java.lang.String,java.util.Map):227:228 -> c
+    9:9:java.lang.String fetchHtml(java.lang.String,java.util.Map):231:231 -> c
+    10:11:java.lang.String fetchHtml(java.lang.String,java.util.Map):235:236 -> c
+    12:13:java.lang.String fetchHtml(java.lang.String,java.util.Map):238:239 -> c
+    14:16:java.lang.String fetchHtml(java.lang.String,java.util.Map):241:243 -> c
+    17:17:java.lang.String fetchHtml(java.lang.String,java.util.Map):233:233 -> c
+    1:5:java.util.Map parseServerLinksFromHtml(java.lang.String):250:254 -> d
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(Ljava/lang/String;)Ljava/util/HashMap;"}
+    6:6:java.util.Map parseServerLinksFromHtml(java.lang.String):256:256 -> d
+    7:10:java.util.Map parseServerLinksFromHtml(java.lang.String):265:268 -> d
+    11:13:java.util.Map parseServerLinksFromHtml(java.lang.String):270:272 -> d
+    14:15:java.util.Map parseServerLinksFromHtml(java.lang.String):274:275 -> d
+    16:17:java.util.Map parseServerLinksFromHtml(java.lang.String):277:278 -> d
+    18:18:java.util.Map parseServerLinksFromHtml(java.lang.String):280:280 -> d
+    19:25:java.util.Map parseServerLinksFromHtml(java.lang.String):283:289 -> d
+    26:27:java.util.Map parseServerLinksFromHtml(java.lang.String):295:296 -> d
+    28:30:java.util.Map parseServerLinksFromHtml(java.lang.String):304:306 -> d
+    31:31:java.util.Map parseServerLinksFromHtml(java.lang.String):305:305 -> d
+    32:32:java.util.Map parseServerLinksFromHtml(java.lang.String):310:310 -> d
+    33:33:java.util.Map parseServerLinksFromHtml(java.lang.String):322:322 -> d
+    34:38:java.util.Map parseServerLinksFromHtml(java.lang.String):334:338 -> d
+    39:39:java.util.Map parseServerLinksFromHtml(java.lang.String):323:323 -> d
+    40:41:java.util.Map parseServerLinksFromHtml(java.lang.String):326:327 -> d
+    42:42:java.util.Map parseServerLinksFromHtml(java.lang.String):329:329 -> d
+    43:43:java.util.Map parseServerLinksFromHtml(java.lang.String):324:324 -> d
+    44:44:java.util.Map parseServerLinksFromHtml(java.lang.String):311:311 -> d
+    45:46:java.util.Map parseServerLinksFromHtml(java.lang.String):314:315 -> d
+    47:47:java.util.Map parseServerLinksFromHtml(java.lang.String):317:317 -> d
+    48:48:java.util.Map parseServerLinksFromHtml(java.lang.String):312:312 -> d
+com.daniewatch.app.VCloudExtractor$1 -> a.k:
+# {"id":"sourceFile","fileName":"VCloudExtractor.java"}
+    java.lang.String val$vcloudUrl -> a
+    com.daniewatch.app.VCloudExtractor$ExtractCallback val$callback -> b
+    com.daniewatch.app.VCloudExtractor this$0 -> c
+      # {"id":"com.android.tools.r8.residualsignature","signature":"La/l;"}
+    1:10:void <init>(com.daniewatch.app.VCloudExtractor,java.lang.String,com.daniewatch.app.VCloudExtractor$ExtractCallback):50:50 -> <init>
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/l;Ljava/lang/String;Lcom/daniewatch/app/VCloudExtractor$ExtractCallback;)V"}
+    1:2:void run():54:55 -> run
+    3:3:android.os.Handler com.daniewatch.app.VCloudExtractor.access$100(com.daniewatch.app.VCloudExtractor):32:32 -> run
+    3:3:void run():56 -> run
+    4:4:void run():56:56 -> run
+    5:9:void run():66:70 -> run
+    10:12:void run():74:76 -> run
+    13:13:void run():79:79 -> run
+    14:14:android.os.Handler com.daniewatch.app.VCloudExtractor.access$100(com.daniewatch.app.VCloudExtractor):32:32 -> run
+    14:14:void run():80 -> run
+    15:15:void run():80:80 -> run
+    16:16:void run():88:88 -> run
+    17:17:android.os.Handler com.daniewatch.app.VCloudExtractor.access$100(com.daniewatch.app.VCloudExtractor):32:32 -> run
+    17:17:void run():89 -> run
+    18:18:void run():89:89 -> run
+com.daniewatch.app.VCloudExtractor$1$1 -> a.i:
+# {"id":"sourceFile","fileName":"VCloudExtractor.java"}
+    com.daniewatch.app.VCloudExtractor$1 this$1 -> a
+      # {"id":"com.android.tools.r8.residualsignature","signature":"La/k;"}
+    1:6:void <init>(com.daniewatch.app.VCloudExtractor$1):56:56 -> <init>
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/k;)V"}
+    1:10:void run():59:59 -> run
+com.daniewatch.app.VCloudExtractor$1$2 -> a.j:
+# {"id":"sourceFile","fileName":"VCloudExtractor.java"}
+    int a.VCloudExtractor$1$2.$r8$classId -> a
+      # {"id":"com.android.tools.r8.synthesized"}
+    com.daniewatch.app.VCloudExtractor$1 this$1 -> b
+      # {"id":"com.android.tools.r8.residualsignature","signature":"La/k;"}
+    java.lang.String val$callbackResult -> c
+      # {"id":"com.android.tools.r8.residualsignature","signature":"Ljava/io/Serializable;"}
+    1:1:void a.VCloudExtractor$1$2.<init>(a.VCloudExtractor$1,java.io.Serializable,int):0:0 -> <init>
+      # {"id":"com.android.tools.r8.synthesized"}
+      # {"id":"com.android.tools.r8.residualsignature","signature":"(La/k;Ljava/io/Serializable;I)V"}
+    6:35:void com.daniewatch.app.VCloudExtractor$1$3.run():92:92 -> run
+    36:48:void run():83:83 -> run
+com.daniewatch.app.VCloudExtractor$ExtractCallback -> com.daniewatch.app.VCloudExtractor$ExtractCallback:
+# {"id":"sourceFile","fileName":"VCloudExtractor.java"}

@@ -1,0 +1,22 @@
+com.daniewatch.app.MainActivity:
+    private static final java.lang.String WEBSITE_URL
+com.daniewatch.app.R$color
+com.daniewatch.app.R$drawable
+com.daniewatch.app.R$mipmap
+com.daniewatch.app.R$string
+com.daniewatch.app.R$style
+com.daniewatch.app.R$xml
+com.daniewatch.app.R
+com.daniewatch.app.MainActivity$DanieWatchBridge$1:
+    public final synthetic com.daniewatch.app.MainActivity$DanieWatchBridge this$1
+com.daniewatch.app.MainActivity$DanieWatchBridge:
+    public static synthetic void lambda$extractVCloud$0()
+    public static synthetic void lambda$extractVCloudAsync$1()
+    public static synthetic void lambda$startDownload$2()
+com.daniewatch.app.MainActivity:
+    public static void configureWebView()
+com.daniewatch.app.VCloudExtractor:
+    public static void cleanup()
+    public final void extract(java.lang.String,com.daniewatch.app.VCloudExtractor$ExtractCallback)
+    public static java.util.Map performHttpExtraction()
+    public static java.lang.String traceHubCloudRedirect()

@@ -268,16 +268,15 @@ public class MainActivity extends Activity {
         public void startDownload(String url, String title) {
             new Handler(Looper.getMainLooper()).post(() -> {
                 try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    String absoluteUrl = url;
+                    if (url != null && url.startsWith("/")) {
+                        absoluteUrl = WEBSITE_URL.replaceAll("/$", "") + url;
+                    }
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(absoluteUrl));
                     startActivity(intent);
                 } catch (Exception e) {
-                    try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        startActivity(intent);
-                    } catch (Exception ex) {
-                        Toast.makeText(MainActivity.this,
-                            "Unable to open browser", Toast.LENGTH_SHORT).show();
-                    }
+                    Toast.makeText(MainActivity.this,
+                        "Unable to open browser", Toast.LENGTH_SHORT).show();
                 }
             });
         }

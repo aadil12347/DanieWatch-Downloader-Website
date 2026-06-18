@@ -1,0 +1,12 @@
+com.daniewatch.app.VCloudExtractor$ExtractCallback
+com.daniewatch.app.MainActivity
+com.daniewatch.app.MainActivity$DanieWatchBridge: void extractVCloudAsync(java.lang.String,java.lang.String)
+com.daniewatch.app.VCloudExtractor$ExtractCallback: void onResult(java.lang.String)
+com.daniewatch.app.MainActivity$1: void onPageStarted(android.webkit.WebView,java.lang.String,android.graphics.Bitmap)
+com.daniewatch.app.MainActivity$DanieWatchBridge: boolean isNativeApp()
+com.daniewatch.app.MainActivity: MainActivity()
+com.daniewatch.app.VCloudExtractor$ExtractCallback: void onError(java.lang.String)
+com.daniewatch.app.MainActivity$DanieWatchBridge: java.lang.String getAppVersion()
+com.daniewatch.app.MainActivity$DanieWatchBridge: void startDownload(java.lang.String,java.lang.String)
+com.daniewatch.app.MainActivity$DanieWatchBridge: java.lang.String extractVCloud(java.lang.String)
+com.daniewatch.app.MainActivity$1: void onPageFinished(android.webkit.WebView,java.lang.String)
