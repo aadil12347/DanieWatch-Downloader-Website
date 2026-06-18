@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { APK_DOWNLOAD_URL } from '../lib/app-config.js';
+import { detectLanguage } from '../lib/naming-helper.js';
 
 const TYPE_MAP = { 1: 'movie', 2: 'tv', 3: 'anime', 7: 'short-tv' };
 const BADGE_CLASS = { movie: 'badge-movie', tv: 'badge-tv', anime: 'badge-anime', 'short-tv': 'badge-tv' };
@@ -543,11 +544,15 @@ export default function HomePage() {
           }
           if (selectedServerUrl) {
             const isNative = isInNativeApp || (typeof window !== 'undefined' && !!window.DanieWatchBridge);
+            const itemTitle = selectedItem?.title || 'Video Download';
+            const lang = detectLanguage(itemTitle);
+            const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(itemTitle)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}&lang=${encodeURIComponent(lang)}`;
+            
             if (isNative && window.DanieWatchBridge && window.DanieWatchBridge.startDownload) {
-              window.DanieWatchBridge.startDownload(selectedServerUrl, selectedItem?.title || 'Video Download');
-              showToast('Download queued in system!', 'success');
+              window.DanieWatchBridge.startDownload(dlUrl, itemTitle);
+              showToast('Opening in browser...', 'success');
             } else {
-              window.location.href = selectedServerUrl;
+              window.location.href = dlUrl;
               showToast('Download started!', 'success');
             }
           } else {
@@ -615,8 +620,10 @@ export default function HomePage() {
       }
 
       if (selectedServerUrl) {
-        const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(selectedItem.title)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}`;
-        triggerDownload(dlUrl, selectedItem.title);
+        const itemTitle = selectedItem.title;
+        const lang = detectLanguage(itemTitle);
+        const dlUrl = `/api/stream?url=${encodeURIComponent(selectedServerUrl)}&title=${encodeURIComponent(itemTitle)}&res=${selectedServerName}&se=${vcloudSelectedSeason || 0}&ep=${vcloudSelectedEpisode || 0}&lang=${encodeURIComponent(lang)}`;
+        triggerDownload(dlUrl, itemTitle);
       } else {
         throw new Error('No download server links returned.');
       }
@@ -1602,7 +1609,9 @@ export default function HomePage() {
                                       </div>
                                     );
                                   }
-                                  const dlUrl = dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}`;
+                                  const itemTitle = detail?.subject?.title || selectedItem.title;
+                                  const lang = detectLanguage(itemTitle);
+                                  const dlUrl = dl.type === 'redirect' ? dl.url : `/api/stream?url=${encodeURIComponent(dl.url)}&title=${encodeURIComponent(itemTitle)}&res=${dl.resolution}&se=${selectedSeason}&ep=${selectedEpisode}&lang=${encodeURIComponent(lang)}`;
                                   return (
                                     <a
                                       key={i}
@@ -1610,7 +1619,7 @@ export default function HomePage() {
                                       href={dlUrl}
                                       onClick={(e) => {
                                         if (dl.type !== 'redirect') {
-                                          triggerDownload(dlUrl, detail?.subject?.title || selectedItem.title, e);
+                                          triggerDownload(dlUrl, itemTitle, e);
                                         }
                                       }}
                                       target={dl.type === 'redirect' ? "_blank" : undefined}
@@ -1665,7 +1674,9 @@ export default function HomePage() {
                                 <h4 className="subtitles-area-title">💬 Subtitles</h4>
                                 <div className="subtitles-chips-group">
                                   {downloads.captions.map((cap, i) => {
-                                    const capUrl = cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(detail?.subject?.title || selectedItem.title)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}`;
+                                    const itemTitle = detail?.subject?.title || selectedItem.title;
+                                    const lang = detectLanguage(itemTitle);
+                                    const capUrl = cap.type === 'redirect' ? cap.url : `/api/stream?url=${encodeURIComponent(cap.url)}&title=${encodeURIComponent(itemTitle)}&res=${cap.lanName || cap.lan}&se=${selectedSeason}&ep=${selectedEpisode}&lang=${encodeURIComponent(lang)}`;
                                     return (
                                       <a
                                         key={i}
@@ -1673,7 +1684,7 @@ export default function HomePage() {
                                         href={capUrl}
                                         onClick={(e) => {
                                           if (cap.type !== 'redirect') {
-                                            triggerDownload(capUrl, detail?.subject?.title || selectedItem.title, e);
+                                            triggerDownload(capUrl, itemTitle, e);
                                           }
                                         }}
                                         target={cap.type === 'redirect' ? "_blank" : undefined}

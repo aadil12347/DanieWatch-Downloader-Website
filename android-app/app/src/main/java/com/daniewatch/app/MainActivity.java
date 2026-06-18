@@ -82,22 +82,19 @@ public class MainActivity extends Activity {
                 String url = request.getUrl().toString();
                 String urlLower = url.toLowerCase();
 
-                // 1. Intercept direct video download streams to bypass error page loads (404/403)
+                // 1. Intercept direct video download streams to open in external default browser
                 if (urlLower.contains("/api/stream") || 
                     urlLower.contains("fastdl") || urlLower.contains("fsl.") || 
                     urlLower.contains("hubcloud") || urlLower.contains("gpdl") || 
                     urlLower.contains("r2.cloudflarestorage") || urlLower.contains("r2.dev")) {
                     
-                    String downloadUrl = url;
-                    if (urlLower.contains("/api/stream")) {
-                        Uri uri = Uri.parse(url);
-                        String rawUrl = uri.getQueryParameter("url");
-                        if (rawUrl != null && !rawUrl.isEmpty()) {
-                            downloadUrl = rawUrl;
-                        }
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        Toast.makeText(MainActivity.this,
+                            "Unable to open browser", Toast.LENGTH_SHORT).show();
                     }
-                    
-                    new DanieWatchBridge().startDownload(downloadUrl, "DanieWatch Video");
                     return true; // Cancel navigation
                 }
                 
@@ -269,39 +266,15 @@ public class MainActivity extends Activity {
         public void startDownload(String url, String title) {
             new Handler(Looper.getMainLooper()).post(() -> {
                 try {
-                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-                    
-                    // Sanitize file name
-                    String cleanTitle = title.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
-                    String fileName = (cleanTitle.isEmpty() ? "DanieWatch_Video" : cleanTitle) + ".mp4";
-                    
-                    request.setTitle(cleanTitle.isEmpty() ? "DanieWatch Video" : cleanTitle);
-                    request.setDescription("Downloading file from source...");
-                    request.setNotificationVisibility(
-                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                    request.setDestinationInExternalPublicDir(
-                        Environment.DIRECTORY_DOWNLOADS, fileName);
-                    
-                    // Hotlink headers to bypass hotlinking block on CDNs
-                    request.addRequestHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-                    request.addRequestHeader("Referer", "https://vcloud.zip/");
-
-                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-                    if (dm != null) {
-                        dm.enqueue(request);
-                        Toast.makeText(MainActivity.this,
-                            "Download started: " + fileName, Toast.LENGTH_SHORT).show();
-                    } else {
-                        throw new Exception("Download service not available");
-                    }
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    startActivity(intent);
                 } catch (Exception e) {
-                    // Fallback to browser intent
                     try {
                         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                         startActivity(intent);
                     } catch (Exception ex) {
                         Toast.makeText(MainActivity.this,
-                            "Unable to download file", Toast.LENGTH_SHORT).show();
+                            "Unable to open browser", Toast.LENGTH_SHORT).show();
                     }
                 }
             });

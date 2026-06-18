@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cleanTitleForFilename, detectLanguage } from '@/lib/naming-helper';
 
 export const runtime = 'edge';
 
@@ -27,6 +28,7 @@ export async function GET(request) {
     const resolution = searchParams.get('res') || '720p';
     const se = searchParams.get('se');
     const ep = searchParams.get('ep');
+    const langParam = searchParams.get('lang');
 
     if (!videoUrl) {
       return NextResponse.json({ error: 'url required' }, { status: 400 });
@@ -53,15 +55,16 @@ export async function GET(request) {
     }
 
     // Clean up filename and format as required
-    const cleanTitle = title.replace(/[^a-zA-Z0-9\s-_]/g, '').trim();
+    const cleanTitle = cleanTitleForFilename(title) || 'video';
+    const detectedLang = langParam || detectLanguage(title);
     
     let parts = [];
-    parts.push(cleanTitle || 'video');
+    parts.push(cleanTitle);
     
     if (se && se !== '0') {
       const sStr = `S${String(se).padStart(2, '0')}`;
       const eStr = `E${String(ep || 1).padStart(2, '0')}`;
-      parts.push(`${sStr}${eStr}`);
+      parts.push(`${sStr} ${eStr}`);
     }
     
     let resStr = resolution;
@@ -69,9 +72,10 @@ export async function GET(request) {
       resStr = `${resolution}p`;
     }
     parts.push(resStr);
+    parts.push(detectedLang);
     parts.push('DanieWatch');
     
-    const baseFilename = parts.join('_').replace(/[\s_]+/g, '_');
+    const baseFilename = parts.join(' ').replace(/\s+/g, ' ');
 
     // Forward the client Range header if present
     const clientRange = request.headers.get('range');
