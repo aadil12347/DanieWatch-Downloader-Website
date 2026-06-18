@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { APK_DOWNLOAD_URL } from '../lib/app-config.js';
+import { APK_DOWNLOAD_URL, REQUIRED_APP_VERSION } from '../lib/app-config.js';
 import { detectLanguage } from '../lib/naming-helper.js';
 
 const TYPE_MAP = { 1: 'movie', 2: 'tv', 3: 'anime', 7: 'short-tv' };
@@ -30,6 +30,7 @@ export default function HomePage() {
   // Native app detection & install modal state
   const [isInNativeApp, setIsInNativeApp] = useState(false);
   const [showAppInstallModal, setShowAppInstallModal] = useState(false);
+  const [showAppUpdateModal, setShowAppUpdateModal] = useState(false);
 
   // Search state
   const [query, setQuery] = useState('');
@@ -105,12 +106,21 @@ export default function HomePage() {
     }, 4000);
   };
 
-  // Detect if running inside native WebView wrapper
+  // Detect if running inside native WebView wrapper and check version sync
   useEffect(() => {
     if (typeof window !== 'undefined' && window.DanieWatchBridge) {
       setIsInNativeApp(true);
+      
+      // Get app version from native bridge
+      const appVersion = typeof window.DanieWatchBridge.getAppVersion === 'function'
+        ? window.DanieWatchBridge.getAppVersion()
+        : '1.0.0';
+        
+      if (appVersion !== REQUIRED_APP_VERSION) {
+        setShowAppUpdateModal(true);
+      }
     }
-  }, []);
+  }, [isInNativeApp]);
 
 
 
@@ -1784,6 +1794,43 @@ export default function HomePage() {
               Download DanieWatch Downloader App
             </button>
             <p className="app-install-modal-hint">Android 7.0+ required • Lightweight ~5MB</p>
+          </div>
+        </div>
+      )}
+
+      {/* APP UPDATE MODAL (shown when version is mismatched inside WebView app) */}
+      {showAppUpdateModal && (
+        <div className="modal-backdrop" style={{ backdropFilter: 'blur(20px)', background: 'rgba(5, 5, 7, 0.95)' }}>
+          <div className="app-install-modal" style={{ border: '1px solid rgba(229, 9, 20, 0.3)', boxShadow: '0 0 40px rgba(229, 9, 20, 0.15)' }} data-lenis-prevent>
+            <div className="app-install-modal-icon" style={{ animation: 'pulse 2s infinite', fontSize: '3rem', color: '#e50914' }}>🔄</div>
+            <h2 className="app-install-modal-title" style={{ fontSize: '1.8rem', fontWeight: '800', letterSpacing: '-0.5px' }}>App Update Required</h2>
+            <p className="app-install-modal-desc" style={{ opacity: 0.8, fontSize: '0.95rem', lineHeight: '1.6' }}>
+              Your current app version does not match the website requirements. To continue searching and downloading, please update your app.
+            </p>
+            <div className="app-install-modal-features" style={{ margin: '20px 0', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '20px 0' }}>
+              <div className="app-install-feature"><span>🚀</span> Requires matching version: <strong>{REQUIRED_APP_VERSION}</strong></div>
+              <div className="app-install-feature"><span>⚡</span> Faster links, layout fixes, and direct downloads</div>
+              <div className="app-install-feature"><span>🔒</span> Secure, verified, and direct install</div>
+            </div>
+            <button
+              className="app-install-modal-btn"
+              style={{ background: 'linear-gradient(135deg, #e50914 0%, #b80710 100%)', transform: 'scale(1.02)' }}
+              onClick={() => {
+                if (APK_DOWNLOAD_URL && APK_DOWNLOAD_URL !== '#paste-download-link-here') {
+                  window.location.href = APK_DOWNLOAD_URL;
+                } else {
+                  showToast('Update download link coming soon!', 'info');
+                }
+              }}
+            >
+              <svg style={{ width: '20px', height: '20px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download & Install Update
+            </button>
+            <p className="app-install-modal-hint" style={{ marginTop: '15px' }}>Installing this update will replace your current app.</p>
           </div>
         </div>
       )}

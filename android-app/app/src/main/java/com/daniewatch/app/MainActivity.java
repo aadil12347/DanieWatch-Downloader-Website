@@ -27,6 +27,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 
 /**
  * MainActivity — Full-screen WebView wrapper for DanieWatch.
@@ -287,7 +289,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.0";
+            try {
+                PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+                return pInfo.versionName;
+            } catch (Exception e) {
+                return "1.0.0";
+            }
         }
     }
 
